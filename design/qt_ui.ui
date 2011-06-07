@@ -97,14 +97,76 @@
        </layout>
       </item>
       <item>
-       <widget class="QLabel" name="label_2">
-        <property name="text">
-         <string>Press Space to advance frame</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QLabel" name="curTimeLabel">
+          <property name="maximumSize">
+           <size>
+            <width>125</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>00:00:00:000</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>Press Space to advance frame</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBox">
+          <property name="maximumSize">
+           <size>
+            <width>125</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <item>
+           <property name="text">
+            <string>Film (24 fps) </string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>PAL (25 fps)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>NTSC (30 fps)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Show (48 fps)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>PAL Field (50 fps)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>NTSC Field (60 fps)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Custom...</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
     </item>
