@@ -7,6 +7,7 @@ from PIL import Image
 from storyTime import get_log
 from storyTime.gui.qt_ui import Ui_MainWindow
 from storyTime.gui.fps_ui import Ui_Dialog
+from storyTime.gui import StoryTimeControl
 from production import sequences
 
 LOG = get_log(__name__)
@@ -23,17 +24,7 @@ def run_gui(**kwargs):
     win.show()
     app.exec_()
 
-class StoryView(QtGui.QMainWindow):
-    
-    recording = False
-    playing = False
-    startFrame = 0
-    curFrame = 0
-    nextIndex = 0
-    imgScale = 1
-    timingData = []
-    imgSequence = []
-    fps = 24
+class StoryView(QtGui.QMainWindow, StoryTimeControl):
     
     def __init__(self, parent=None):
         QtGui.QMainWindow.__init__(self, parent)

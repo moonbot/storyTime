@@ -111,7 +111,7 @@ class Ui_MainWindow(object):
         self.playBtn.setText(QtGui.QApplication.translate("MainWindow", "Play", None, QtGui.QApplication.UnicodeUTF8))
         self.curTimeLabel.setText(QtGui.QApplication.translate("MainWindow", "00:00:00:000", None, QtGui.QApplication.UnicodeUTF8))
         self.label_2.setText(QtGui.QApplication.translate("MainWindow", "Press Space to advance frame", None, QtGui.QApplication.UnicodeUTF8))
-        self.comboBox.setItemText(0, QtGui.QApplication.translate("MainWindow", "Film (24 fps) ", None, QtGui.QApplication.UnicodeUTF8))
+        self.comboBox.setItemText(0, QtGui.QApplication.translate("MainWindow", "Film (24 fps)", None, QtGui.QApplication.UnicodeUTF8))
         self.comboBox.setItemText(1, QtGui.QApplication.translate("MainWindow", "PAL (25 fps)", None, QtGui.QApplication.UnicodeUTF8))
         self.comboBox.setItemText(2, QtGui.QApplication.translate("MainWindow", "NTSC (30 fps)", None, QtGui.QApplication.UnicodeUTF8))
         self.comboBox.setItemText(3, QtGui.QApplication.translate("MainWindow", "Show (48 fps)", None, QtGui.QApplication.UnicodeUTF8))
