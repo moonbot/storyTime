@@ -9,6 +9,8 @@ from storyTime.gui.qt_ui import Ui_MainWindow
 from storyTime.gui.fps_ui import Ui_Dialog
 from storyTime.gui import StoryTimeControl
 from production import sequences
+from PyQt4.uic.Compiler.qtproxies import QtGui
+from gui.qt import BUTTON_ACTIVATE, BUTTON_DEACTIVATE
 
 LOG = get_log(__name__)
 
@@ -64,9 +66,6 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
     def recordHandler(self):
         self.recording = not self.recording
         if self.recording:
-            self.ui.recordBtn.setStyleSheet(BUTTON_ACTIVATE)
-            self.ui.recordBtn.setText(QtCore.QString('Stop'))
-            self.ui.playBtn.setEnabled(False)
             self.playing = False
             self.timer.start()
             self.startFrame = self.ui.timeSlider.value() - 1
@@ -79,10 +78,6 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
     def playHandler(self):
         self.playing = not self.playing
         if self.playing:
-            self.ui.playBtn.setStyleSheet(BUTTON_ACTIVATE)
-            self.ui.playBtn.setText(QtCore.QString('Stop'))
-            self.ui.recordBtn.setEnabled(False)
-            self.recording = False
             self.ui.playBtn.clearFocus()
         else:
             self.stop()
@@ -95,10 +90,13 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
             if self.nextIndex == value - 1:
                 self.curImage.setPixmap(self.nextPixmap)
             else:
-                self.curImage.setPixmap(self.newPixmap(self.imgSequence[value - 1]))
+                self.curImage.setPixmap(QtGui.QPixmap(self.imgSequence[value - 1]))
         except AttributeError:
             pass
         self.loadNextPixmap()
+        
+    def view_set_frame_label(self, label):
+        self.ui.timeLabel.SetText(QtCore.QString(strLabel))
         
     def sliderMovedHandler(self):
         self.stop()
@@ -106,72 +104,91 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
     def openHandler(self):
         self.cleanup()
         pass
-    
-    def importHandler(self):
-        self.cleanup()
-        imgFile = str(QtGui.QFileDialog.getOpenFileName(
-                self, QtCore.QString('Import Image Sequence')))
-        if imgFile is not None:
-            imgFile = os.path.normpath(imgFile)
-            self.imgSequence = sequences.file_sequence(imgFile)
-            i = self.imgSequence.index(imgFile)
-            pixmap = self.newPixmap(self.imgSequence[i])
-            self.curImage = QtGui.QGraphicsPixmapItem(pixmap)
-            displayWidth = pixmap.width()
-            displayHeight = pixmap.height()
-            self.imgScale = 1
-            dScreen = QtGui.QDesktopWidget().screenGeometry()
-            print str(pixmap.size())
-            while (displayWidth > dScreen.width() or
-                   displayHeight > dScreen.height()):
-                displayWidth = displayWidth / 2;
-                displayHeight = displayHeight / 2;
-                self.imgScale = self.imgScale / 2;
             
-            self.curImage.scale(self.imgScale, self.imgScale)
-            self.scene.addItem(self.curImage)
-            self.ui.graphicsView_2.setFixedSize(displayWidth+5, displayHeight+5)
-            self.centerWindow()
-            self.ui.timeSlider.setRange(1,len(self.imgSequence))
-            self.ui.timeSlider.setValue(i+1)
-            self.timingData = [1000 for x in range(0,self.ui.timeSlider.maximum())]
+    def view_init_sequence(self, imgSequence):
+        pixmap = QtGui.QPixmap(imgSequence)
+        self.curImage = QtGui.QGraphicsPixmapItem(pixmap)
+        displayWidth = pixmap.width()
+        displayHeight = pixmap.height()
+        imgScale = 1
+        dScreen = QtGui.QDesktopWidget().screenGeometry()
+        while(displayWidth > dScreen.width() or
+              displayHeight > dScreen.height()):
+            displayWidth /= 2
+            displayHeight /= 2
+            imgScale /= 2
+        self.curImage.scale(imgScale, imgScale)
+        self.scene.addItem(self.curImage)
+        self.ui.graphicsView_2.setFixedSize(displayWidth+5, displayHeight+5)
+        self.centerWindow()
+        self.ui.timeSlider.setRange(1,len(imgSequence))
+        self.ui.timeSlider.setValue(1)
+        
+    def view_browse_import(self, caption):
+        imgFile = str(QtGui.QFileDialog.getOpenFileName(self, QtCore.QString(caption))))
+        return imgFile
+    
+    def view_get_data(self):
+        data = {}
+        data['recording'] = self.get_button_state(self.ui.recordBtn)
+        data['playing'] = self.get_button_state(self.ui.playBtn)
+        data['fps_index'] = self.ui.comboBox.index()
+        data['cur_frame'] = self.ui.timeSlider.value()
+        return data
+    
+    def view_set_data(self, data):
+        self.ui.timeSlider.setValue(data['cur_frame'])
+        
+        self.set_button_state(self.ui.recordBtn, data['recording'], 'Record')
+        self.set_button_state(self.ui.recordBtn, data['playing'], 'Play')
+        
+    def set_button_state(self, button, state, name):
+        if state == self.BUTTON_STATES.ON:
+            button.setStyleSheet(BUTTON_ACTIVATE)
+            button.setText(QtCore.QString('Stop'))
+            button.setEnabled(True)
+        elif state == self.BUTTON_STATES.OFF:
+            button.setStyleSheet(BUTTON_DEACTIVATE)
+            button.setText(QtCore.QString(name))
+            button.setEnabled(True)
+        elif state == self.BUTTON_STATES.DISABLED
+            button.setStyleSheet(BUTTON_DEACTIVATE)
+            button.setText(QtCore.QString(name))
+            button.setEnabled(False)
+            
+    def get_button_state(self, button):
+        if button.enabled() == False:
+            return self.BUTTON_STATES.DISABLED
+        if button.text() == 'Stop':
+            return self.BUTTON_STATES.ON
+        return self.BUTTON_STATES.OFF
+    
+    def view_query_custom_fps(self):
+        fpsData = QtGui.QInputDialog.getInt(
+                    self, QtCore.QString('Custom...'),
+                    QtCore.QString('Enter Custom Fps'),
+                    self.fps, 0 , 1000, 1)
+        if fpsData[1]:
+            return fpsData[1]
+        
+    def view_set_fps_options(self, options):
+        for i in range(0, len(options)):
+            self.ui.comboBox.setItemText(i, QtCore.QString(options[i][0]))
     
     def saveHandler(self):
-        
         pass
     
     def saveAsHandler(self):
         pass
     
-    def fpsHandler(self, index):
-        if index == 0:
-            self.fps = 24
-        elif index == 1:
-            self.fps = 25
-        elif index == 2:
-            self.fps = 30
-        elif index == 3:
-            self.fps = 48
-        elif index == 4:
-            self.fps = 50
-        elif index == 5:
-            self.fps = 60
-        elif index == 6:
-            fpsData = QtGui.QInputDialog.getInt(
-                    self, QtCore.QString('Custom...'),
-                    QtCore.QString('Enter Custom Fps'),
-                    self.fps, 0 , 1000, 1)
-            if fpsData[1]:
-                self.fps = fpsData[0]
-                newString = 'Custom ({0} fps)...'.format(fpsData[0])
-                self.ui.comboBox.setItemText(6, QtCore.QString(newString))
-        print self.createFramesList()
     
+    
+    #keyPressEvents : controller or view?
     def keyPressEvent(self, event):
         if event.key()==QtCore.Qt.Key_Space:
-            self.advanceFrame()
+            self.ctl_inc_frame()
         elif event.key()==QtCore.Qt.Key_Backspace:
-            self.ui.timeSlider.setValue(self.ui.timeSlider.value()-1)
+            self.ctl_goto_frame()
             
     def resizeEvent(self, event):
         self.centerWindow()
@@ -195,9 +212,6 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
         else:
             self.nextPixmap = self.newPixmap(self.imgSequence[self.nextIndex])
             
-    def newPixmap(self, path):
-        return QtGui.QPixmap(path)
-                
     def centerWindow(self):
         screen = QtGui.QDesktopWidget().screenGeometry()
         size = self.geometry()
@@ -225,25 +239,4 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
                 self.scene.removeItem(self.curImage)
         except AttributeError:
             pass
-        
-    def stop(self):
-        if self.recording:
-            self.timingData[self.curFrame] = self.timer.elapsed()
-        self.ui.recordBtn.setStyleSheet(BUTTON_DEACTIVATE)
-        self.ui.playBtn.setStyleSheet(BUTTON_DEACTIVATE)
-        self.ui.recordBtn.setText(QtCore.QString('Record'))
-        self.ui.playBtn.setText(QtCore.QString('Play'))
-        self.ui.recordBtn.setEnabled(True)
-        self.ui.playBtn.setEnabled(True)
-        self.recording = False
-        self.playing = False
-        
-    def createXml(self):
-        xml_str = '<?xml version="1.0" ?>\n<fps>{0}</fps>\n<frames>'.format(self.fps)
-        for i in range(0,len(self.imgSequence)):
-            xml_str = xml_str + '\n\t<frame>\n\t\t<ms>{0}</ms>\n\t\t<path>{1}</path>\n\t</frame>'.format(self.imgSequence[i], self.timingData[i])
-        xml_str = xml_str + '\n</frames>\n'
-        return xml_str
-            
-        
         
