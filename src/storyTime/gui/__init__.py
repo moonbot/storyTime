@@ -13,7 +13,6 @@ def run_gui(**kwargs):
     """Run the Sync Gui"""
     qt.run_gui()
     
-    
 class StoryTimeControlUI(object):
     
     def view_browse_open(self, caption):
@@ -50,7 +49,7 @@ class StoryTimeControlUI(object):
     
     def ob_fps_options(self):
         raise NotImplementedError
-        
+    
     
 class StoryTimeModel(object):
     
@@ -85,7 +84,6 @@ class StoryTimeModel(object):
         for key in data.keys():
             data[key] = Observable(data[key])
         self.__dict__.update(data)
-        
         
 class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         
@@ -248,4 +246,3 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
                 self.recording.set(self.BUTTON_STATES.DISABLED)
             else:
                 self.ctl_stop()
-    
