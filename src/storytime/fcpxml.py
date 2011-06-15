@@ -4,51 +4,253 @@ Created on Jun 13, 2011
 @author: clewis
 
 fcpxml - Provides an easy interface to working with Final Cut Pro XML files
-'''
 
+NOTICE: Files should be referenced from the network instead of local paths
+'''
+import os
+import re
 import xml.dom.minidom as minidom
 
+from PIL import Image
+import hourglass
+
+
+#Ugly, ugly, lazy hack to format XML correctly
+def fixed_writexml(self, writer, indent="", addindent="", newl=""):
+    # indent = current indentation
+    # addindent = indentation to add to higher levels
+    # newl = newline string
+    writer.write(indent+"<" + self.tagName)
+
+    attrs = self._get_attributes()
+    a_names = attrs.keys()
+    a_names.sort()
+
+    for a_name in a_names:
+        writer.write(" {0}=\"".format(a_name))
+        minidom._write_data(writer, attrs[a_name].value)
+        writer.write("\"")
+    if self.childNodes:
+        if len(self.childNodes) == 1 and self.childNodes[0].nodeType == minidom.Node.TEXT_NODE:
+            writer.write(">")
+            self.childNodes[0].writexml(writer, "", "", "")
+            writer.write("</{0}>{1}".format(self.tagName, newl))
+            return
+        writer.write(">{0}".format(newl))
+        for node in self.childNodes:
+            node.writexml(writer,indent+addindent,addindent,newl)
+        writer.write("{0}</{1}>{2}".format(indent,self.tagName,newl))
+    else:
+        writer.write("/>{0}".format(newl))
+
+
+class FcpXmlError(Exception):
+    pass
+
+
 class FcpXml(object):
+    
     xml = None
-    def __init__(self, xmlFilePath = ''):
-        if xmlFilePath is not None and xmlFilePath != '':
-            with open(xmlFilePath, 'r') as xmlFile:
-                xmlStr = xmlFile.read()
-                xmlStr = xmlStr.replace('\n', '')
-                xmlStr = xmlStr.replace('\t', '')
-                self.xml = minidom.parseString(xmlFile.read())
-        else:
-            self.xml = minidom.Document()
-            
-    def build_basic_structure(self, name):
-        xmeml = self.addChild('xmeml', self.xml)
-        self.addAttr('version', '4', xmeml)
-        project = self.addChild('project', xmeml)
-        nameE = self.addChild('name', project)
-        self.addText(name, nameE)
-        self.children = self.addChild('children', project)
-        self.sequence = self.addChild('sequence', self.children)
-        self.addAttr('id', 'sequence-1', self.sequence)
-        media = self.addChild('media', self.sequence)
-        video = self.addChild('video', media)
-        self.track = self.addChild('track', video)
-        enabled = self.addChild('enabled', self.track)
-        self.addText('TRUE', enabled)
-        locked = self.addChild('locked', self.track)
+    images = []
+    curId = 1
+    curIdSeq = 1
+    settings = {
+        'name':'',
+        'ntsc':'TRUE',
+        'fps':'30',
+        'displayformat':'NDF',
+        'width':'0',
+        'height':'0',
+        'os':'win',
+        'videowidthFCP':'1280',
+        'videoheightFCP':'720',
+        'videowidthPremiere':'720',
+        'videoheightPremiere':'480'
+    }
+    
+    def __init__(self, name = '', images = [], fps=30, ntsc=True, os='win'):
+        """
+        TODO:
+        -Turn this class into a function with child functions instead
         
-    def addChild(self, childName, parent):
+        `xmlFilePath` -- the path of the xml file to be saved
+        `images` -- a zipped list of image paths and frame counts
+        `fps` -- the frame rate
+        `ntsc` -- wether the frame rate has ntsc frame reduction
+        """
+        minidom.Element.writexml = fixed_writexml
+        
+        imp = minidom.DOMImplementation()
+        doctype = imp.createDocumentType('xmeml', '', '')
+        self.xml = imp.createDocument(None, 'xmeml', doctype)
+        self.images = images
+        self.settings['name'] = name
+        self.settings['fps'] = str(fps)
+        self.settings['os'] = os
+        if ntsc ==True:
+            self.settings['ntsc'] = 'TRUE'
+        else:
+            self.settings['ntsc'] = 'FALSE'
+        if fps == 30:
+            self.settings['displayformat'] = 'DF'
+        else:
+            self.settings['displayformat'] = 'NDF'
+        size = self.getImageSize(images[0][0])
+        self.settings['width'] = str(size[0])
+        self.settings['height'] = str(size[1])
+        self.build()
+        
+    def getStr(self):
+        return self.xml.toprettyxml()
+            
+    def build(self):
+        self.xml.removeChild(self.xml.childNodes[1])
+        xmeml = self.addChild('xmeml', self.xml, version=4)
+        project = self.addChild('project', xmeml)
+        self.addChild('name', project, self.settings['name'])
+        self.children = self.addChild('children', project)
+        for image in self.images:
+            self.addClip(image[0])
+        self.curId = 1
+        self.addSequence()
+        start = 0
+        for image in self.images:
+            end = start + image[1]
+            self.addClipitem(start, end)
+            start += image[1]
+        
+    def addClip(self, path):
+        """Add an image clip to the default sequence"""
+        mastercliptext = 'masterclip-{0}'.format(self.curId)
+        filetext = 'file-{0}'.format(self.curId)
+        clipitemtext = 'clipitem-{0}'.format(self.curId)
+        nametext = os.path.split(path)[1]
+        pathurltext = self.convertPath(path)
+        clip = self.addChild('clip', self.children, '', id=mastercliptext)
+        self.addChild('masterclipid', clip, mastercliptext)
+        self.addChild('ismasterclip', clip, 'TRUE')
+        self.addChild('name', clip, nametext)
+        self.addChild('duration', clip, '150')
+        self.addRate(clip)
+        media = self.addChild('media', clip)
+        video = self.addChild('video', media)
+        track = self.addChild('track', video)
+        clipitem = self.addChild('clipitem', track, '', id=clipitemtext)
+        self.addChild('masterclipid', clipitem, mastercliptext)
+        fileE = self.addChild('file', clipitem, '', id=filetext)
+        self.addChild('name', fileE, nametext)
+        self.addChild('pathurl', fileE, pathurltext)
+        self.addRate(fileE)
+        self.addTimecode(0, fileE)
+        media = self.addChild('media', fileE)
+        video = self.addChild('video', media)
+        self.addChild('duration', video, '18000')
+        sc = self.addChild('samplecharacteristics', video)
+        self.addRate(sc)
+        self.addChild('width', sc, self.settings['width'])
+        self.addChild('height', sc, self.settings['height'])
+        self.addChild('anamorphic', sc, 'FALSE')
+        self.addChild('pixelaspectratio', sc, 'square')
+        self.addChild('fielddominance', sc, 'none')
+        self.curId += 1
+        
+    def addSequence(self):
+        sequence = self.addChild('sequence', self.children, '', id='sequence-1')
+        self.addChild('name', sequence, 'Sequence 01')
+        self.addChild('duration', sequence, '150')
+        self.addRate(sequence)
+        media = self.addChild('media', sequence)
+        video = self.addChild('video', media)
+        format = self.addChild('format', video)
+        sc = self.addChild('samplecharacteristics', format)
+        self.addRate(sc)
+        if self.settings['os'] == 'win':
+            self.addChild('width', sc, self.settings['videowidthPremiere'])
+            self.addChild('height', sc, self.settings['videoheightPremiere'])
+        elif self.settings['os'] == 'mac':
+            self.addChild('width', sc, self.settings['videowidthFCP'])
+            self.addChild('height', sc, self.settings['videoheightFCP'])
+        else:
+            raise FcpXmlError('Not a valid os')
+        self.addChild('anamorphic', sc, 'FALSE')
+        self.addChild('pixelaspectratio', sc, 'NTSC-601')
+        self.addChild('fielddominance', sc, 'none')
+        self.addChild('colordepth', sc, '24')
+        self.track = self.addChild('track', video)
+        self.addChild('enabled', self.track, 'TRUE')
+        self.addChild('locked', self.track, 'FALSE')
+        audio = self.addChild('audio', media)
+        self.addChild('format', audio)
+        self.addChild('track', audio)
+        self.addTimecode(0, sequence)
+        
+    def addClipitem(self, start, end):
+        clipitemtext = 'clipitem-{0}'.format(self.curId + len(self.images))
+        mastercliptext = 'masterclip-{0}'.format(self.curId)
+        filetext = 'file-{0}'.format(self.curId)
+        clipitem = self.addChild('clipitem', self.track, '', id=clipitemtext)
+        self.addChild('masterclipid', clipitem, mastercliptext)
+        self.addChild('enabled', clipitem, 'TRUE')
+        self.addChild('duration', clipitem, '150')
+        self.addChild('start', clipitem, str(start))
+        self.addChild('end', clipitem, str(end))
+        self.addChild('file', clipitem, '', id=filetext)
+        self.curId += 1
+        
+    def addChild(self, childName, parent, text='', **kwargs):
         child = self.xml.createElement(childName)
         parent.appendChild(child)
+        if text != '':
+            textChild = self.xml.createTextNode(str(text))
+            child.appendChild(textChild)
+        for key in kwargs.keys():
+            attr = self.xml.createAttribute(key)
+            attr.value = str(kwargs[key])
+            child.attributes.setNamedItem(attr)
+        return child
         
-    def addText(self, text, parent):
-        child = self.xml.createTextNode(text)
-        parent.appendChild(child)
+    def addTimecode(self, frame, parent):
         
-    def addAttr(self, key, value, parent):
-        attr = self.xml.createAttribute(key)
-        attr.value = value
-        parent.attributes.setNamedItem(attr)
-
-    def add_image(self, path, start, end):
-        """Adds an image clipitem to the default sequence"""
-        pass
+        timecode = self.addChild('timecode', parent)
+        self.addRate(timecode)
+        self.addChild('frame', timecode, str(frame))
+        self.addChild('displayformat', timecode, self.settings['displayformat'])
+        self.addChild('source', timecode, 'source')
+        
+    def addRate(self, parent):
+        rateNode = self.addChild('rate', parent)
+        self.addChild('timebase', rateNode, self.settings['fps'])
+        self.addChild('ntsc', rateNode, self.settings['ntsc'])
+    
+    def getImageSize(self, path):
+        img = Image.open(path)
+        if img is not None:
+            return img.size
+        
+    def convertPath(self, path):
+        if self.settings['os'] == 'win':
+            return self.convertPathWin(path)
+        elif self.settings['os'] == 'mac':
+            return self.convertPathMac(path)
+        else:
+            raise FcpXmlError('Not a valid os')
+        
+    def convertPathWin(self, path):
+        return 'file://localhost/' + path.replace(':', '%3a').replace(' ', '%20').replace('\\', '/')
+    
+    def convertPathMac(self, path):
+        drive = os.path.splitdrive(path)[0] + '\\'
+        mapping = ''
+        for project in hourglass.all_projects():
+            if project['paths'].has_key('network'):
+                if project['paths']['network'] == drive:
+                    mapping = project['mappings']['network']
+        if mapping != '':
+            path = path.replace(os.path.splitdrive(path)[0], mapping[mapping.index('/projects/'):])
+            path = path.replace(':', '%3a').replace(' ', '%20').replace('\\', '/')
+            path = 'file://localhost/Volumes/HOME' + path
+        else:
+            path = path.replace(':', '%3a').replace(' ', '%20').replace('\\', '/')
+            path = 'file://localhost/Volumes/HOME' + os.path.splitdrive(path)[1]
+        return path
+    

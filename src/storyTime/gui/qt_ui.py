@@ -98,6 +98,8 @@ class Ui_MainWindow(object):
         self.actionSave_As.setObjectName("actionSave_As")
         self.actionExport_To_FCP = QtGui.QAction(MainWindow)
         self.actionExport_To_FCP.setObjectName("actionExport_To_FCP")
+        self.actionExport_To_Premiere = QtGui.QAction(MainWindow)
+        self.actionExport_To_Premiere.setObjectName("actionExport_To_Premiere")
         self.menuFile.addAction(self.actionOpen)
         self.menuFile.addAction(self.actionImport_Image_Sequence)
         self.menuFile.addAction(self.actionImport_Directory)
@@ -105,6 +107,7 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionSave)
         self.menuFile.addAction(self.actionSave_As)
         self.menuFile.addAction(self.actionExport_To_FCP)
+        self.menuFile.addAction(self.actionExport_To_Premiere)
         self.menubar.addAction(self.menuFile.menuAction())
 
         self.retranslateUi(MainWindow)
@@ -134,6 +137,7 @@ class Ui_MainWindow(object):
         self.actionSave.setText(QtGui.QApplication.translate("MainWindow", "Save", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSave_As.setText(QtGui.QApplication.translate("MainWindow", "Save As...", None, QtGui.QApplication.UnicodeUTF8))
         self.actionExport_To_FCP.setText(QtGui.QApplication.translate("MainWindow", "Export To Final Cut Pro...", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionExport_To_Premiere.setText(QtGui.QApplication.translate("MainWindow", "Export To Premiere...", None, QtGui.QApplication.UnicodeUTF8))
 
 
 if __name__ == "__main__":

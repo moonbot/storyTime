@@ -6,6 +6,7 @@ import xml.dom.minidom
 from production import sequences
 
 from storytime.utils import enum, Observable
+from storytime.fcpxml import FcpXml
 
 
 def run_gui(**kwargs):
@@ -19,7 +20,11 @@ class StoryTimeControlUI(object):
         """Return the path of the selected file"""
         raise NotImplementedError
     
-    def view_browse_save_as(self):
+    def view_browse_open_dir(self, caption):
+        """Return the path of the selected directory"""
+        raise NotImplementedError
+    
+    def view_browse_save_as(self, caption):
         """Return the path of the selected file"""
         raise NotImplementedError
     
@@ -33,6 +38,10 @@ class StoryTimeControlUI(object):
     
     def view_query_custom_fps(self):
         """Query the user for a custom fps and return the value"""
+        raise NotImplementedError
+    
+    def view_get_image_formats(self):
+        """Return a list of valid image formats"""
         raise NotImplementedError
     
     def ob_recording(self):
@@ -108,7 +117,7 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         xmlStr = xmlStr.replace('\t', '')
         xmlDoc = xml.dom.minidom.parseString(xmlStr)
         mainElement = xmlDoc.getElementsByTagName('storyTime')[0]
-        fps = mainElement.getElementsByTagName('fps')[0].childNodes[0].nodeValue
+        fps = int(mainElement.getElementsByTagName('fps')[0].childNodes[0].nodeValue)
         framesElement = mainElement.getElementsByTagName('frames')[0]
         images = []
         times = []
@@ -158,12 +167,39 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
             self.curFrame.set(1)
             
     def ctl_import_directory(self):
-        raise NotImplementedError
-    
-    def ctl_export_fcp(self):
-        path = self.view_browse_save_as()
+        path = self.view_browse_open_dir('Import Image Directory...')
         if path is not None and path != '':
-            print 'yay!'
+            paths = []
+            for temppath in os.listdir(path):
+                found = False
+                for imageformat in self.view_get_image_formats():
+                    if imageformat == os.path.splitext(temppath)[1]:
+                        found=True
+                        break
+                if found:
+                    paths.append(path + '/' + temppath)
+            if len(paths) > 0:
+                self.images.set(paths)
+                self.times.set([1000 for x in range(0,len(self.images.get()))])
+                self.startFrame.set(1)
+                self.curFrame.set(1)
+    
+    def ctl_export_premiere(self):
+        self.ctl_export('Export to Premiere...', 'win')
+                
+    def ctl_export_fcp(self):
+        self.ctl_export('Export to Final Cut Pro...', 'mac')
+                    
+    def ctl_export(self, caption, version):
+        if len(self.images.get()) > 0:
+            path = self.view_browse_save_as(caption)
+            if path is not None and path != '':
+                images = zip(self.images.get(), self.create_frames_list())
+                ntsc = (self.fps.get() % 30 == 0)
+                with open(path, 'w') as exportFile:
+                    exportFile.write(FcpXml(
+                            os.path.splitext(os.path.split(path)[1])[0], 
+                            images, self.fps.get(), ntsc, version).getStr())
             
     def ctl_save(self):
         if self.savePath.get() == '':
@@ -173,11 +209,12 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
             saveFile.write(self.to_xml())
             
     def ctl_save_as(self):
-        path = self.view_browse_save_as()
-        if path is not None and path != '':
-            with open(path, 'w') as saveFile:
-                saveFile.write(self.to_xml())
-            self.savePath.set(path)
+        if len(self.images.get()) > 0:
+            path = self.view_browse_save_as('Save As...')
+            if path is not None and path != '':
+                with open(path, 'w') as saveFile:
+                    saveFile.write(self.to_xml())
+                self.savePath.set(path)
             
     def ctl_stop(self):
         if self.recording.get() == self.BUTTON_STATES.ON:
@@ -202,7 +239,8 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
             
     def ctl_ob_cur_frame(self):
         if self.curFrame.get() < 1:
-            self.curFrame.set(1)
+            if len(self.images.get()) > 0:
+                self.curFrame.set(1)
         elif self.curFrame.get() > len(self.images.get()):
             self.curFrame.set(len(self.images.get()))
             
@@ -210,7 +248,7 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         self.fpsIndex.set(index)
         if self.fpsIndex.get() == len(self.fpsOptions.get()) - 1:
             newFps = self.view_query_custom_fps()
-            self.fpsOptions.get()[-1][0] = 'Custom ({0}) fps...'.format(newFps)
+            self.fpsOptions.get()[-1][0] = 'Custom ({0} fps)...'.format(newFps)
             self.fpsOptions.get()[-1][1] = newFps
             self.fpsOptions.set(self.fpsOptions.get())
         self.fps.set(self.fpsOptions.get()[self.fpsIndex.get()][1])

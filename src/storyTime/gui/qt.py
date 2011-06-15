@@ -43,6 +43,8 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
         self.ui.graphicsView_2.setScene(self.scene)
         # add keyboard shortcuts
         self.ui.actionOpen.setShortcut(QtGui.QKeySequence.Open)
+        #Hide time stuff
+        self.ui.curTimeLabel.setText(QtCore.QString(''))
         #Ctrl+I
         self.ui.actionImport_Image_Sequence.setShortcut(QtGui.QKeySequence.Italic)
         self.ui.actionSave.setShortcut(QtGui.QKeySequence.Save)
@@ -59,9 +61,12 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
     def view_browse_open(self, caption):
         return str(QtGui.QFileDialog.getOpenFileName(self, QtCore.QString(caption)))
     
-    def view_browse_save_as(self):
+    def view_browse_open_dir(self, caption):
+        return str(QtGui.QFileDialog.getExistingDirectory(self, QtCore.QString(caption)))
+    
+    def view_browse_save_as(self, caption):
         return str(QtGui.QFileDialog.getSaveFileNameAndFilter(
-                self, caption=QtCore.QString('Save As...'),
+                self, caption=QtCore.QString(caption),
                 directory=QtCore.QString('C:\\'),
                 filter=QtCore.QString('XML files (*.xml)'))[0])
     
@@ -78,6 +83,12 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
                     self.fps.get(), 0 , 1000, 1)
         if fpsData[0]:
             return int(fpsData[0])
+        
+    def view_get_image_formats(self):
+        imageformats = []
+        for imageformat in QtGui.QImageReader.supportedImageFormats():
+            imageformats.append('.' + str(imageformat))
+        return imageformats
     
     def center_window(self):
         screen = QtGui.QDesktopWidget().screenGeometry()
@@ -129,6 +140,10 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
     @QtCore.pyqtSlot(name='on_actionExport_To_FCP_triggered')
     def cb_export_fcp(self):
         self.ctl_export_fcp()
+        
+    @QtCore.pyqtSlot(name='on_actionExport_To_Premiere_triggered')
+    def cb_export_premiere(self):
+        self.ctl_export_premiere()
     
     @QtCore.pyqtSlot(name='on_actionSave_triggered')
     def cb_save(self):
