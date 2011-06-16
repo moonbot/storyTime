@@ -45,6 +45,8 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
         self.ui.actionOpen.setShortcut(QtGui.QKeySequence.Open)
         #Hide time stuff
         self.ui.curTimeLabel.setText(QtCore.QString(''))
+        #Allow file drag and drop
+        self.setAcceptDrops(True)
         #Ctrl+I
         self.ui.actionImport_Image_Sequence.setShortcut(QtGui.QKeySequence.Italic)
         self.ui.actionSave.setShortcut(QtGui.QKeySequence.Save)
@@ -123,6 +125,28 @@ class StoryView(QtGui.QMainWindow, StoryTimeControl):
     def playTimerEvent(self, event):
         self.killTimer(self.prevTimer)
         self.ctl_update_playback()
+        
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.accept()
+        else:
+            event.ignore()
+            
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.setDropAction(QtCore.Qt.CopyAction)
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.setDropAction(QtCore.Qt.CopyAction)
+            event.accept()
+            paths = []
+            for url in event.mimeData().urls():
+                paths.append(str(url.toLocalFile()))
+            self.ctl_process_dropped_paths(paths)
             
     #UI Callbacks
     @QtCore.pyqtSlot(name='on_actionOpen_triggered')

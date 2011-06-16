@@ -1,0 +1,3 @@
+-Auto-increment audio versions with each new record session
+-Get audio to not be stupid and actually record
+-History system (audio and timing)

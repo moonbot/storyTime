@@ -6,6 +6,7 @@ import xml.dom.minidom
 from production import sequences
 
 from storytime.utils import enum, Observable
+from storytime.audio import AudioHandler
 from storytime.fcpxml import FcpXml
 
 
@@ -85,7 +86,8 @@ class StoryTimeModel(object):
             'fps':24,
             'fpsOptions':self.FPS_OPTIONS,
             'fpsIndex':0,
-            'savePath':''
+            'savePath':'',
+            'audioPath':''
         }
         self.add_observables(model)
         
@@ -95,6 +97,8 @@ class StoryTimeModel(object):
         self.__dict__.update(data)
         
 class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
+    
+    audioHandler = None
         
     def create_frames_list(self):
         """Return a list of image times converted to the current fps"""
@@ -118,6 +122,7 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         xmlDoc = xml.dom.minidom.parseString(xmlStr)
         mainElement = xmlDoc.getElementsByTagName('storyTime')[0]
         fps = int(mainElement.getElementsByTagName('fps')[0].childNodes[0].nodeValue)
+        audioPath = mainElement.getElementsByTagName('audio')[0].childNodes[0].nodeValue
         framesElement = mainElement.getElementsByTagName('frames')[0]
         images = []
         times = []
@@ -127,6 +132,7 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         self.fps.set(fps)
         self.images.set(images)
         self.times.set(times)
+        self.audioPath.set(audioPath)
         
     def to_xml(self):
         xmlDoc = xml.dom.minidom.Document()
@@ -136,6 +142,10 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         stElement.appendChild(fpsElement)
         fpsText = xmlDoc.createTextNode(str(self.fps.get()))
         fpsElement.appendChild(fpsText)
+        audioElement = xmlDoc.createElement('audio')
+        stElement.appendChild(audioElement)
+        audioText = xmlDoc.createTextNode(self.audioPath.get())
+        audioElement.appendChild(audioText)
         framesElement = xmlDoc.createElement('frames')
         stElement.appendChild(framesElement)
         for i in range(0, len(self.images.get())):
@@ -151,38 +161,85 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
             msElement.appendChild(msText)
         return xmlDoc.toprettyxml('\t', '\n')
     
-    def ctl_open(self):
-        path = self.view_browse_open('Open...')
-        if path is not None and path != '':
-            with open(path, 'r') as openFile:
-                self.from_xml(openFile.read())
-            self.savePath.set(path)
-    
-    def ctl_import_from_sequence(self):
-        path = self.view_browse_open('Import Image Sequence...')
-        if path is not None and path != '':
-            self.images.set(sequences.file_sequence(path))
-            self.times.set([1000 for x in range(0,len(self.images.get()))])
-            self.startFrame.set(1)
-            self.curFrame.set(1)
-            
-    def ctl_import_directory(self):
-        path = self.view_browse_open_dir('Import Image Directory...')
-        if path is not None and path != '':
-            paths = []
-            for temppath in os.listdir(path):
+    def ctl_process_dropped_paths(self, paths):
+        """
+        Decides what to do with paths dropped onto the file.  Possible options:
+        
+        Single file:
+        .xml: open
+        anything else: import sequence
+        
+        Directory:
+        import directory
+        
+        Multiple files:
+        import files as sequence
+        """
+        
+        if len(paths) > 1:
+            newpaths = []
+            for temppath in paths:
                 found = False
                 for imageformat in self.view_get_image_formats():
                     if imageformat == os.path.splitext(temppath)[1]:
                         found=True
                         break
                 if found:
-                    paths.append(path + '/' + temppath)
-            if len(paths) > 0:
-                self.images.set(paths)
-                self.times.set([1000 for x in range(0,len(self.images.get()))])
-                self.startFrame.set(1)
-                self.curFrame.set(1)
+                    newpaths.append(temppath)
+            self.ctl_import(newpaths)
+        else:
+            print 'woah'
+            ext = os.path.splitext(paths[0])[1]
+            if ext == '.xml':
+                with open(paths[0], 'r') as openFile:
+                    self.from_xml(openFile.read())
+                self.savePath.set(paths[0])
+                self.audioHandler = AudioHandler(self.images.get()[0])
+            elif os.path.isdir(paths[0]):
+                self.ctl_import_directory2(paths[0])
+            else:
+                for imageformat in self.view_get_image_formats():
+                    if imageformat == ext:
+                        self.ctl_import(sequences.file_sequence(paths[0]))
+    
+    def ctl_open(self):
+        path = self.view_browse_open('Open...')
+        if path is not None and path != '':
+            with open(path, 'r') as openFile:
+                self.from_xml(openFile.read())
+            self.savePath.set(path)
+            self.audioHandler = AudioHandler(self.images.get()[0])
+    
+    def ctl_import_from_sequence(self):
+        path = self.view_browse_open('Import Image Sequence...')
+        if path is not None and path != '':
+            self.ctl_import(sequences.file_sequence(path))
+            
+    def ctl_import_directory(self):
+        path = self.view_browse_open_dir('Import Image Directory...')
+        if path is not None and path != '':
+            self.ctl_import_directory2(path)
+            
+    def ctl_import_directory2(self, path):
+        paths = []
+        for temppath in os.listdir(path):
+            found = False
+            for imageformat in self.view_get_image_formats():
+                if imageformat == os.path.splitext(temppath)[1]:
+                    found=True
+                    break
+            if found:
+                paths.append(path + '/' + temppath)
+        self.ctl_import(paths)
+                
+    def ctl_import(self, paths):
+        if len(paths) > 0:
+            self.images.set(paths)
+            self.times.set([1000 for x in range(0,len(self.images.get()))])
+            self.startFrame.set(1)
+            self.curFrame.set(1)
+            self.audioHandler = AudioHandler(paths[0])
+            self.audioPath.set(self.audioHandler.filename)
     
     def ctl_export_premiere(self):
         self.ctl_export('Export to Premiere...', 'win')
@@ -198,8 +255,12 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
                 ntsc = (self.fps.get() % 30 == 0)
                 with open(path, 'w') as exportFile:
                     exportFile.write(FcpXml(
-                            os.path.splitext(os.path.split(path)[1])[0], 
-                            images, self.fps.get(), ntsc, version).getStr())
+                            name = os.path.splitext(os.path.split(path)[1])[0], 
+                            images = images, 
+                            audioPath = self.audioPath.get(),
+                            fps = self.fps.get(), 
+                            ntsc = ntsc, 
+                            os = version).getStr())
             
     def ctl_save(self):
         if self.savePath.get() == '':
@@ -221,6 +282,8 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
             self.times.get()[self.curFrame.get() - 1] = self.view_update_timer()
         self.recording.set(self.BUTTON_STATES.OFF)
         self.playing.set(self.BUTTON_STATES.OFF)
+        self.audioHandler.stop_recording()
+        self.audioHandler.stop_playing()
         
     def ctl_goto_frame(self, frame):
         self.curFrame.set(frame)
@@ -265,8 +328,8 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         if not (self.recording.get() == self.BUTTON_STATES.DISABLED):
             self.recording.set(not self.recording.get())
             if self.recording.get() == self.BUTTON_STATES.ON:
-                if self.curFrame.get() == len(self.images.get()):
-                    self.curFrame.set(1)
+                self.audioHandler.start_recording()
+                self.curFrame.set(1)
                 self.view_update_timer()
                 self.startFrame.set(self.curFrame.get())
                 self.playing.set(self.BUTTON_STATES.DISABLED)
@@ -277,8 +340,8 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         if not (self.playing.get() == self.BUTTON_STATES.DISABLED):
             self.playing.set(not self.playing.get())
             if self.playing.get() == self.BUTTON_STATES.ON:
-                if self.curFrame.get() == len(self.images.get()):
-                    self.curFrame.set(1)
+                self.audioHandler.start_playing()
+                self.curFrame.set(1)
                 self.view_start_timer(self.times.get()[self.curFrame.get() - 1])
                 self.startFrame.set(self.curFrame.get())
                 self.recording.set(self.BUTTON_STATES.DISABLED)

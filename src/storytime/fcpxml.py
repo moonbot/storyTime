@@ -52,6 +52,7 @@ class FcpXml(object):
     
     xml = None
     images = []
+    audioPath = ''
     curId = 1
     curIdSeq = 1
     settings = {
@@ -68,7 +69,7 @@ class FcpXml(object):
         'videoheightPremiere':'480'
     }
     
-    def __init__(self, name = '', images = [], fps=30, ntsc=True, os='win'):
+    def __init__(self, name = '', images = [], audioPath = '', fps=30, ntsc=True, os='win'):
         """
         TODO:
         -Turn this class into a function with child functions instead
@@ -84,6 +85,7 @@ class FcpXml(object):
         doctype = imp.createDocumentType('xmeml', '', '')
         self.xml = imp.createDocument(None, 'xmeml', doctype)
         self.images = images
+        self.audioPath = audioPath
         self.settings['name'] = name
         self.settings['fps'] = str(fps)
         self.settings['os'] = os
@@ -112,12 +114,14 @@ class FcpXml(object):
         for image in self.images:
             self.addClip(image[0])
         self.curId = 1
+        self.addSoundClip()
         self.addSequence()
         start = 0
         for image in self.images:
             end = start + image[1]
             self.addClipitem(start, end)
             start += image[1]
+        self.addSoundClipitem(end)
         
     def addClip(self, path):
         """Add an image clip to the default sequence"""
@@ -180,9 +184,67 @@ class FcpXml(object):
         self.addChild('enabled', self.track, 'TRUE')
         self.addChild('locked', self.track, 'FALSE')
         audio = self.addChild('audio', media)
-        self.addChild('format', audio)
-        self.addChild('track', audio)
+        audioformat = self.addChild('format', audio)
+        sc = self.addChild('samplecharacteristics', audioformat)
+        self.addChild('depth', sc, '16')
+        self.addChild('samplerate', sc, '48000')
+        self.audiotrack = self.addChild('track', audio)
+        self.addChild('enabled', self.audiotrack, 'TRUE')
+        self.addChild('locked', self.audiotrack, 'FALSE')
         self.addTimecode(0, sequence)
+        
+    def addSoundClip(self):
+        mastercliptext = 'masterclip-{0}'.format(len(self.images) * 2 + 1)
+        filetext = 'file-{0}'.format(len(self.images) * 2 + 1)
+        clipitemtext = 'clipitem-{0}'.format(len(self.images) * 2 + 1)
+        nametext = os.path.split(self.audioPath)[1]
+        pathurltext = self.convertPath(self.audioPath)
+        clip = self.addChild('clip', self.children, '', id=mastercliptext)
+        self.addChild('masterclipid', clip, mastercliptext)
+        self.addChild('ismasterclip', clip, 'TRUE')
+        self.addChild('name', clip, nametext)
+        self.addChild('duration', clip, '150')
+        self.addRate(clip)
+        media = self.addChild('media', clip)
+        audio = self.addChild('audio', media)
+        track = self.addChild('track', audio)
+        clipitem = self.addChild('clipitem', track, '', id=clipitemtext)
+        self.addChild('masterclipid', clipitem, mastercliptext)
+        fileE = self.addChild('file', clipitem, '', id=filetext)
+        self.addChild('name', fileE, nametext)
+        self.addChild('pathurl', fileE, pathurltext)
+        self.addRate(fileE)
+        self.addChild('duration', fileE, '150')
+        self.addTimecode(0, fileE)
+        media = self.addChild('media', fileE)
+        audio = self.addChild('audio', media)
+        sc = self.addChild('samplecharacteristics', audio)
+        self.addChild('depth', sc, '16')
+        self.addChild('samplerate', sc, '44100')
+        self.addChild('channelcount', audio, '1')
+        self.addChild('layout', audio, 'mono')
+        ac = self.addChild('audiochannel', audio)
+        self.addChild('sourcechannel', ac, '1')
+        self.addChild('channellabel', ac, 'discrete')
+        st = self.addChild('sourcetrack', clipitem)
+        self.addChild('mediatype', st, 'audio')
+        self.addChild('trackindex', st, '1')
+        
+    def addSoundClipitem(self, end):
+        mastercliptext = 'masterclip-{0}'.format(len(self.images) * 2 + 1)
+        filetext = 'file-{0}'.format(len(self.images) * 2 + 1)
+        clipitemtext = 'clipitem-{0}'.format(len(self.images) * 2 + 2)
+        clipitem = self.addChild('clipitem', self.audiotrack, '', id=clipitemtext)
+        self.addChild('masterclipid', clipitem, mastercliptext)
+        self.addChild('enabled', clipitem, 'TRUE')
+        self.addChild('duration', clipitem, '100')
+        self.addChild('duration', clipitem, '150')
+        self.addChild('start', clipitem, '0')
+        self.addChild('end', clipitem, str(end))
+        self.addChild('file', clipitem, '', id=filetext)
+        st = self.addChild('sourcetrack', clipitem)
+        self.addChild('mediatype', st, 'audio')
+        self.addChild('trackindex', st, '1')
         
     def addClipitem(self, start, end):
         clipitemtext = 'clipitem-{0}'.format(self.curId + len(self.images))
