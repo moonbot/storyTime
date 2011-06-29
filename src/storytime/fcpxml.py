@@ -69,7 +69,7 @@ class FcpXml(object):
         'videoheightPremiere':'480'
     }
     
-    def __init__(self, name = '', images = [], audioPath = '', fps=30, ntsc=True, os='win'):
+    def __init__(self, name = '', images = [], audioPath = '', fps=30, ntsc=True, OS='win'):
         """
         TODO:
         -Turn this class into a function with child functions instead
@@ -86,10 +86,11 @@ class FcpXml(object):
         self.xml = imp.createDocument(None, 'xmeml', doctype)
         self.images = images
         self.audioPath = audioPath
+        self.includeAudio = os.path.exists(audioPath)
         self.settings['name'] = name
         self.settings['fps'] = str(fps)
-        self.settings['os'] = os
-        if ntsc ==True:
+        self.settings['os'] = OS
+        if ntsc:
             self.settings['ntsc'] = 'TRUE'
         else:
             self.settings['ntsc'] = 'FALSE'
@@ -114,14 +115,16 @@ class FcpXml(object):
         for image in self.images:
             self.addClip(image[0])
         self.curId = 1
-        self.addSoundClip()
+        if self.includeAudio:
+            self.addSoundClip()
         self.addSequence()
         start = 0
         for image in self.images:
             end = start + image[1]
             self.addClipitem(start, end)
             start += image[1]
-        self.addSoundClipitem(end)
+        if self.includeAudio:
+            self.addSoundClipitem(end)
         
     def addClip(self, path):
         """Add an image clip to the default sequence"""
