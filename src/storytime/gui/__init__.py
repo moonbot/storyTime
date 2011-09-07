@@ -6,9 +6,9 @@ import xml.dom.minidom
 
 from production import naming, publish, sequences
 
-from storytime import utils
-from storytime.audio import AudioHandler
-from storytime.fcpxml import FcpXml
+from storyTime import utils
+from storyTime.audio import AudioHandler
+from storyTime.fcpxml import FcpXml
 
 
 def run_gui(**kwargs):
