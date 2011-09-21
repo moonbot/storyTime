@@ -5,8 +5,8 @@ from PyQt4.QtGui import *
 
 from qt_ui import Ui_MainWindow
 from countdown import Ui_Dialog
-from storytime.gui import StoryTimeControl
-from storytime import utils
+from storyTime.gui import StoryTimeControl
+from storyTime import utils
 
 #LOG = get_log(__name__)
 
