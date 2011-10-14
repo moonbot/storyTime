@@ -51,7 +51,7 @@ class CountdownDialog(QDialog):
 
 
 class StoryView(QMainWindow, StoryTimeControl):
-    
+    oldHeight = 0
     curImage = None
     prevTimer = None
     startTime = 0
@@ -189,9 +189,51 @@ class StoryView(QMainWindow, StoryTimeControl):
         elif event.key()==Qt.Key_Backspace or event.key()==Qt.Key_Left:
             self.ctl_dec_frame()
             
-    def resizeEvent(self, event):
-        self.center_window()
+    def resizeEvent(self, event):    	
+    	# if len(self.images.get()) != 0:
+    		# dScreen = self.ui.graphicsView_2.geometry()
+    		# if dScreen.height() != self.oldHeight:
+		        # print('resizing')
+			# pixmap = QPixmap(self.images.get()[0])
+			# pixmap.scaledToHeight(dScreen.height(), Qt.FastTransformation)
+			# self.curImage = QGraphicsPixmapItem(pixmap)
+			# displayWidth = pixmap.width()
+			# displayHeight = pixmap.height()
+			# print 'displayWidth: ' + str(displayWidth)
+			# print 'dScreen width: ' + str(dScreen.width())
+			# print 'displayHeight: ' + str(displayHeight)
+			# print 'dScreen Height: ' + str(dScreen.height()) + '\n'
+			# self.curImage.scale(2.0, 2.0)
+			# self.curImage.setTransformationMode(Qt.FastTransformation)
+			# displayWidth = pixmap.width()
+			# displayHeight = pixmap.height()
+			# imgScale = 1.0 
+			# print 'displayWidth: ' + str(displayWidth)
+			# print 'dScreen width: ' + str(dScreen.width())
+			# print 'displayHeight: ' + str(displayHeight)
+			# print 'dScreen Height: ' + str(dScreen.height()) + '\n'
+			# while(displayWidth > dScreen.width() or
+			#     displayHeight > dScreen.height()):
+			#     displayWidth /= 2
+			#     displayHeight /= 2
+			#     imgScale /= 2
+			# print 'displayHeight: ' + str(displayHeight)
+			# print 'displayWidth: ' + str(displayWidth)		
+			# self.curImage.scale(imgScale, imgScale)
+			# self.curImage.setTransformationMode(Qt.FastTransformation)
+			# self.scene.addItem(self.curImage)
+			# self.ui.graphicsView_2.setFixedSize(displayWidth, displayHeight)
+			# self.setGeometry(QRect(1,1,1,1))
+			# print('resized')
+	self.center_window()
         
+    	
+	#self.center_window()
+    	#size = self.geometry()
+    	#dScreen = QDesktopWidget().screenGeometry()
+    	#self.ui.graphicsView_2.setFixedSize(dScreen.width()-20,dScreen.height()-5)
+    	#self.setGeometry(QRect(1,1,1,1))
+
     def playTimerEvent(self, event):
         self.killTimer(self.prevTimer)
         self.ctl_update_playback()
@@ -232,11 +274,11 @@ class StoryView(QMainWindow, StoryTimeControl):
     
     def ob_cur_frame(self):
         self.ui.timeSlider.setValue(self.curFrame.get())
-        totalImages = len(self.images.get())
+        totalImages = len(self.timing_data.get())
         curFrameStr = utils.fmt_leading_zeroes(self.curFrame.get(), len(str(totalImages)))
         label = '{0}/{1}'.format(curFrameStr, totalImages)
         self.ui.timeLabel.setText(QString(label))
-        pixmap = QPixmap(self.images.get()[self.curFrame.get() - 1])
+        pixmap = QPixmap(self.timing_data.get()[self.curFrame.get() - 1]['image'])
         self.curImage.setPixmap(pixmap)
     
     def ob_images(self):
@@ -249,16 +291,17 @@ class StoryView(QMainWindow, StoryTimeControl):
         dScreen = QDesktopWidget().screenGeometry()
         while(displayWidth > dScreen.width() or
               displayHeight > dScreen.height()):
-            displayWidth /= 2
-            displayHeight /= 2
-            imgScale /= 2
-        self.curImage.scale(imgScale, imgScale)
+            displayWidth /= 1.5
+            displayHeight /= 1.5
+            imgScale /= 1.5
+	self.curImage.scale(imgScale, imgScale)
         self.curImage.setTransformationMode(Qt.FastTransformation)
         self.scene.addItem(self.curImage)
         self.ui.graphicsView_2.setFixedSize(displayWidth+5, displayHeight+5)
         self.setGeometry(QRect(1,1,1,1))
         self.center_window()
         self.ui.timeSlider.setRange(1,len(self.images.get()))
+        
     
     def ob_fps_options(self):
         self.ui.actionCustom.setText(QString(self.fpsOptions.get()[-1][0]))

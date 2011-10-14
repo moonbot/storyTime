@@ -94,12 +94,15 @@ class StoryTimeModel(object):
             ['NTSC Field (60 fps)', 60],
             ['Custom...', 12]
         ]
+        # TODO: replace the `times` list with a `data` list that will hold
+        #	image/time data not associated with the images list
         model = {
             'recording':self.BUTTON_STATES.OFF,
             'playing':self.BUTTON_STATES.OFF,
             'startFrame':0,
             'curFrame':0,
-            'times':[],
+            'curImage':0
+            'timing_data':[],
             'images':[],
             'fps':24,
             'fpsOptions':FPS_OPTIONS,
@@ -133,6 +136,7 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         self.fpsOptions.add_observer(self.ob_fps_options)
         self.images.add_observer(self.ob_images)
         self.playing.add_observer(self.ob_playing)
+        
         self.recording.add_observer(self.ob_recording)
         self.timecode.add_observer(self.ob_timecode)
         
@@ -198,9 +202,12 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         paths = self.filter_image_paths(paths)
         if len(paths) > 0:
             self.images.set(paths)
-            self.times.set([1000 for x in range(0,len(self.images.get()))])
+            #self.times.set([1000 for x in range(0,len(self.images.get()))])
+            for i in paths:
+            	    self.timing_data.get().append({'timing':1000,'image':i})
             self.startFrame.set(1)
             self.curFrame.set(1)
+            self.curImage.set(1)
             self.ctl_make_audio_path()
     
     def ctl_export_premiere(self):
@@ -292,10 +299,13 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
                     if self.recordAudio.get():
                         self.audioHandler.start_recording()
                     self.curFrame.set(1)
+                    self.curImage.set(1)
+                    self.timing_data.set([])
                     if self.recordTiming.get():
                         self.view_update_timer()
                     else:
-                        self.view_start_timer(self.times.get()[self.curFrame.get() - 1])
+                    	# changed to timing_data, starts at first     
+                    	self.view_start_timer(self.timing_data.get()[self.curFrame.get() - 1]['timing'])
                     self.startFrame.set(self.curFrame.get())
                     self.playing.set(self.BUTTON_STATES.DISABLED)
                 else:
@@ -310,7 +320,7 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
                     self.view_start_disp_timer()
                     self.audioHandler.start_playing()
                     self.curFrame.set(1)
-                    self.view_start_timer(self.times.get()[self.curFrame.get() - 1])
+                    self.view_start_timer(self.timing_data.get()[self.curFrame.get() - 1]['timing'])
                     self.startFrame.set(self.curFrame.get())
                     self.recording.set(self.BUTTON_STATES.DISABLED)
                 else:
@@ -318,27 +328,39 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         
     def ctl_goto_frame(self, frame):
         """Go to the given frame"""
-        if len(self.images.get()) > 0:
+        if len(self.timing_data.get()) > 0:
             self.curFrame.set(frame)
             
     def ctl_inc_frame(self):
         """Increment the current frame"""
-        if self.curFrame.get() == len(self.images.get()):
+        if self.curFrame.get() == len(self.timing_data.get()):
             self.ctl_stop()
             return
         elif self.recording.get() == self.BUTTON_STATES.ON and self.recordTiming.get():
-            self.times.get()[self.curFrame.get() - 1] = self.view_update_timer()
+            self.ctl_record_frame()
         self.curFrame.set(self.curFrame.get() + 1)
+        self.curImage.set(self.curImage.get() + 1)
         
     def ctl_dec_frame(self):
         """Decrement the current frame"""
-        self.ctl_stop()
-        self.curFrame.set(self.curFrame.get() - 1)
+        if self.recording.get() == self.BUTTON_STATES.ON and self.recordTiming.get():
+            self.ctl_record_frame()
+        self.curImage.set(self.curImage.get() - 1)
+    
+    def ctl_record_frame(self):
+    	"""
+    	Record the current frame with the current time.
+    	Gets called on inc and dec when recording.
+    	Adds a dict object to the data list
+    	eg. [{'image':'currentImage.jpg', 'time':<currentTime>}, ...]
+    	"""
+    	self.timing_data.get().append({'image':self.images.get()[self.curFrame.get() - 1],
+    		'timing':self.view_update_timer()})
         
     def ctl_stop(self):
         """Stop playback and recording"""
         if self.recording.get() == self.BUTTON_STATES.ON:
-            self.times.get()[self.curFrame.get() - 1] = self.view_update_timer()
+            self.ctl_record_frame()
         self.recording.set(self.BUTTON_STATES.OFF)
         self.playing.set(self.BUTTON_STATES.OFF)
         self.audioHandler.stop_recording()
@@ -346,12 +368,12 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         self.view_stop_disp_timer()
         
     def ctl_update_playback(self):
-        if self.curFrame.get() == len(self.images.get()):
+        if self.curFrame.get() == len(self.timing_data.get()):
             self.ctl_stop()
             return
         elif (self.playing.get() == self.BUTTON_STATES.ON) or (self.recording.get() == self.BUTTON_STATES.ON and not self.recordTiming.get()):
             self.curFrame.set(self.curFrame.get() + 1)
-            self.view_start_timer(self.times.get()[self.curFrame.get() - 1])
+            self.view_start_timer(self.timing_data.get()[self.curFrame.get() - 1]['timing'])
             
     def ctl_update_timecode(self, value):
         if self.countdownms.get() > 0 and self.recording.get() == self.BUTTON_STATES.ON:
@@ -400,15 +422,15 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
     
     def create_frames_list(self):
         """Return a list of image times converted to the current fps"""
-        incFrames = self.times.get()[:]
+	incFrames = self.timing_data.get()[:]
         total = 0
-        for i in range(0, len(self.times.get())):
-            total = total + self.times.get()[i]
+        for i in range(0, len(self.timing_data.get())):
+            total = total + self.timing_data.get()[i]['timing']
             incFrames[i] = int(total * self.fps.get() / 1000)
         fpsFrames = incFrames[:]
         #We can ignore the value at index 0 because it's already the
         #correct value.
-        for i in range(1, len(self.times.get())):
+        for i in range(1, len(self.timing_data.get())):
             fpsFrames[i] = incFrames[i] - incFrames[i-1]
             if fpsFrames[i] < 1:
                 fpsFrames[i] = 1
@@ -436,16 +458,16 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         audioElement.appendChild(audioText)
         framesElement = xmlDoc.createElement('frames')
         stElement.appendChild(framesElement)
-        for i in range(0, len(self.images.get())):
+        for i in range(0, len(self.timing_data.get())):
             frameElement = xmlDoc.createElement('frame')
             framesElement.appendChild(frameElement)
             pathElement = xmlDoc.createElement('path')
             frameElement.appendChild(pathElement)
-            pathText = xmlDoc.createTextNode(self.images.get()[i])
+            pathText = xmlDoc.createTextNode(self.timing_data.get()[i]['image'])
             pathElement.appendChild(pathText)
             msElement = xmlDoc.createElement('ms')
             frameElement.appendChild(msElement)
-            msText = xmlDoc.createTextNode(str(self.times.get()[i]))
+            msText = xmlDoc.createTextNode(str(self.timing_data.get()[i]['timing']))
             msElement.appendChild(msText)
         return xmlDoc.toprettyxml('\t', '\n')
     
@@ -485,7 +507,8 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         
     def ctl_ob_cur_frame(self):
         if self.curFrame.get() < 1:
-            if len(self.images.get()) > 0:
+            if len(self.timing_data.get()) > 0:
                 self.curFrame.set(1)
-        elif self.curFrame.get() > len(self.images.get()):
-            self.curFrame.set(len(self.images.get()))
+                self.curImage.set(1)
+        elif self.curFrame.get() > len(self.timing_data.get()):
+            self.curFrame.set(len(self.timing_data.get()))
