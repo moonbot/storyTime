@@ -55,7 +55,7 @@ class StoryView(QMainWindow, StoryTimeControl):
     curImage = None
     prevTimer = None
     startTime = 0
-    
+    imageScaler = 1.0
     def __init__(self, parent=None):
         QMainWindow.__init__(self, parent)
         # load ui class
@@ -75,7 +75,7 @@ class StoryView(QMainWindow, StoryTimeControl):
         self.dispTimer = QTimer()
         self.dispTimer.timerEvent = self.dispTimerEvent
         # init scene
-        self.scene = QGraphicsScene()
+        self.scene = QGraphicsScene() 
         self.ui.graphicsView_2.setScene(self.scene)
         # allow file drag and drop
         self.setAcceptDrops(True)
@@ -104,8 +104,8 @@ class StoryView(QMainWindow, StoryTimeControl):
         self.connect(self.ui.actionImport_Directory, SIGNAL("triggered()"), self.cb_import_directory)
         self.connect(self.ui.actionSave, SIGNAL("triggered()"), self.cb_save)
         self.connect(self.ui.actionSave_As, SIGNAL("triggered()"), self.cb_save)
-        self.connect(self.ui.actionExport_To_FCP, SIGNAL("triggered()"), self.cb_save_as)
-        self.connect(self.ui.actionExport_To_Premiere, SIGNAL("triggered()"), self.cb_export_premiere)
+        #self.connect(self.ui.actionExport_To_FCP, SIGNAL("triggered()"), self.cb_save_as)
+        #self.connect(self.ui.actionExport_To_Premiere, SIGNAL("triggered()"), self.cb_export_premiere)
         
     # Inherited View Functions
     # ------------------------
@@ -184,12 +184,12 @@ class StoryView(QMainWindow, StoryTimeControl):
     # ---------------
         
     def keyPressEvent(self, event):
-        if event.key()==Qt.Key_Space or event.key()==Qt.Key_Right:
+        if event.key()==Qt.Key_Space or event.key() == Qt.Key_Period:
             self.ctl_inc_frame()
-        elif event.key()==Qt.Key_Backspace or event.key()==Qt.Key_Left:
+        if event.key()==Qt.Key_Backspace or event.key()==Qt.Key_Comma:
             self.ctl_dec_frame()
             
-    def resizeEvent(self, event):    	
+    #def resizeEvent(self, event):    	
     	# if len(self.images.get()) != 0:
     		# dScreen = self.ui.graphicsView_2.geometry()
     		# if dScreen.height() != self.oldHeight:
@@ -225,7 +225,7 @@ class StoryView(QMainWindow, StoryTimeControl):
 			# self.ui.graphicsView_2.setFixedSize(displayWidth, displayHeight)
 			# self.setGeometry(QRect(1,1,1,1))
 			# print('resized')
-	self.center_window()
+	#self.center_window()
         
     	
 	#self.center_window()
@@ -273,12 +273,29 @@ class StoryView(QMainWindow, StoryTimeControl):
         self.set_button_state(self.ui.playBtn, self.playing.get(), "Play")
     
     def ob_cur_frame(self):
-        self.ui.timeSlider.setValue(self.curFrame.get())
-        totalImages = len(self.timing_data.get())
-        curFrameStr = utils.fmt_leading_zeroes(self.curFrame.get(), len(str(totalImages)))
-        label = '{0}/{1}'.format(curFrameStr, totalImages)
+        """Set up sliders"""
+        self.ui.timeSlider.setValue(self.curImgFrame.get())
+        self.ui.recSlider.setValue(self.curFrame.get())
+        
+        """Set up (# current image)/(# total images)"""
+        totalImages = len(self.images.get())
+        curImageStr = utils.fmt_leading_zeroes(self.curImgFrame.get(), len(str(totalImages)))
+        label = '{0}/{1}'.format(curImageStr, totalImages)
+        totalFrames = len(self.timing_data.get())
+        curFrameStr = utils.fmt_leading_zeroes(self.curFrame.get(), len(str(totalFrames)))
+        label2 = '{0}/{1}'.format(curFrameStr, totalFrames)
+        """Setting up the labels"""
         self.ui.timeLabel.setText(QString(label))
-        pixmap = QPixmap(self.timing_data.get()[self.curFrame.get() - 1]['image'])
+        self.ui.frameLabel.setText(QString(label2))
+        image = self.timing_data.get()[self.curFrame.get() - 1]['image']
+        """Update the current image; if playing, update from timing _data (recorded sequence), if not update from images list"""
+        if self.playing.get() == self.BUTTON_STATES.ON:
+            imgName = 'Filename: ' + os.path.split(self.timing_data.get()[self.curFrame.get() - 1]['image'])[1]
+            pixmap = QPixmap(self.timing_data.get()[self.curFrame.get() - 1]['image'])
+        else:
+            imgName = 'Filename: ' + os.path.split(self.images.get()[self.curImgFrame.get() - 1])[1]
+            pixmap = QPixmap(self.images.get()[self.curImgFrame.get() - 1])
+        self.ui.filenameText.setText(QString(imgName))
         self.curImage.setPixmap(pixmap)
     
     def ob_images(self):
@@ -291,17 +308,42 @@ class StoryView(QMainWindow, StoryTimeControl):
         dScreen = QDesktopWidget().screenGeometry()
         while(displayWidth > dScreen.width() or
               displayHeight > dScreen.height()):
-            displayWidth /= 1.5
-            displayHeight /= 1.5
-            imgScale /= 1.5
-	self.curImage.scale(imgScale, imgScale)
+            displayWidth /= 2.0
+            displayHeight /= 2.0
+            imgScale /= 2.0
+            self.imageScaler = self.imageScaler * 2.0
+	    self.curImage.scale(imgScale, imgScale)
         self.curImage.setTransformationMode(Qt.FastTransformation)
         self.scene.addItem(self.curImage)
-        self.ui.graphicsView_2.setFixedSize(displayWidth+5, displayHeight+5)
+        #self.ui.graphicsView_2.setFixedSize(displayWidth+5, displayHeight+5)
+        self.ui.graphicsView_2.setMinimumSize(displayWidth+5, displayHeight+5)
         self.setGeometry(QRect(1,1,1,1))
         self.center_window()
         self.ui.timeSlider.setRange(1,len(self.images.get()))
-        
+        self.ui.recSlider.setRange(1,len(self.images.get()))
+    
+    def scale_image_up(self):
+        if self.curImage == None:
+            return
+        pix = self.curImage.pixmap()
+        #print 'WIDGET SIZE height: {0}, width: {1}'.format(str(self.ui.height()), str(self.ui.width()))
+        self.curImage.scale(1.5,1.5)
+        self.curImage.setTransformationMode(Qt.FastTransformation)
+        pix = self.curImage.pixmap()
+        self.imageScaler = self.imageScaler / 1.5
+        self.ui.graphicsView_2.setMinimumSize(5 +(pix.width()/self.imageScaler), 5 +(pix.height()/self.imageScaler))
+    
+    def scale_image_down(self):
+        if self.curImage == None:
+            return
+        pix = self.curImage.pixmap()
+        #print 'WIDGET SIZE height: {0}, width: {1}'.format(str(self.ui.height()), str(self.ui.width()))
+        self.curImage.scale(0.5,0.5)
+        self.curImage.setTransformationMode(Qt.FastTransformation)
+        pix = self.curImage.pixmap()
+        self.imageScaler = self.imageScaler / .5
+        self.ui.graphicsView_2.setMaximumSize(5 +(pix.width()/self.imageScaler), 5 +(pix.height()/self.imageScaler))
+
     
     def ob_fps_options(self):
         self.ui.actionCustom.setText(QString(self.fpsOptions.get()[-1][0]))
@@ -351,7 +393,15 @@ class StoryView(QMainWindow, StoryTimeControl):
     @pyqtSlot(name='on_playBtn_clicked')
     def cb_play_clicked(self):
         self.ctl_toggle_play()
-        
+    
+    @pyqtSlot(name='on_scaleUpBtn_clicked')
+    def cb_scaleUp_clicked(self):
+        self.scale_image_up()
+
+    @pyqtSlot(name='on_scaleDownBtn_clicked')
+    def cb_scaleDown_clicked(self):
+        self.scale_image_down()
+    
     @pyqtSlot(name='on_action24_triggered')
     def cb_24_triggered(self):
         self.ctl_change_fps(0)
@@ -386,12 +436,20 @@ class StoryView(QMainWindow, StoryTimeControl):
         
     @pyqtSlot(int, name='on_timeSlider_valueChanged')
     def cb_timeslider_valuechanged(self, value):
-        self.ctl_goto_frame(value)
-        
+        self.ctl_goto_imgframe(value)
+
+    @pyqtSlot(int, name='on_recSlider_valueChanged')
+    def cb_recslider_valuechanged(self, value):
+        self.ctl_goto_recframe(value)
+    
     @pyqtSlot(int, name='on_timeSlider_sliderMoved')
     def cb_timeslider_slidermoved(self, value):
         self.ctl_stop()
-        
+    
+    @pyqtSlot(int, name='on_recSlider_sliderMoved')
+    def cb_recslider_slidermoved(self, value):
+        self.ctl_stop()
+    
     @pyqtSlot(int, name='on_timingBox_stateChanged')
     def cb_timingbox_statechanged(self, value):
         self.ctl_toggle_record_timing(value)

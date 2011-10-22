@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>888</width>
-    <height>858</height>
+    <width>800</width>
+    <height>832</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,35 +21,7 @@
     <item row="0" column="0">
      <layout class="QVBoxLayout" name="graphicsViewLayout">
       <item>
-       <widget class="QGraphicsView" name="graphicsView_2"/>
-      </item>
-      <item>
        <layout class="QHBoxLayout" name="horizontalLayout_5">
-        <item>
-         <spacer name="horizontalSpacer_2">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item>
-         <widget class="QLabel" name="filenameText">
-          <property name="font">
-           <font>
-            <pointsize>12</pointsize>
-           </font>
-          </property>
-          <property name="text">
-           <string>Filename: *.png</string>
-          </property>
-         </widget>
-        </item>
         <item>
          <spacer name="horizontalSpacer_3">
           <property name="orientation">
@@ -57,7 +29,23 @@
           </property>
           <property name="sizeHint" stdset="0">
            <size>
-            <width>40</width>
+            <width>0</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QGraphicsView" name="graphicsView_2"/>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>0</width>
             <height>20</height>
            </size>
           </property>
@@ -78,8 +66,14 @@
              <widget class="QLabel" name="timeLabel">
               <property name="minimumSize">
                <size>
-                <width>58</width>
+                <width>63</width>
                 <height>0</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>63</width>
+                <height>16777215</height>
                </size>
               </property>
               <property name="font">
@@ -108,6 +102,38 @@
               </property>
              </widget>
             </item>
+            <item>
+             <widget class="QPushButton" name="scaleUpBtn">
+              <property name="styleSheet">
+               <string notr="true">background-color: rgb(70, 70, 70);</string>
+              </property>
+              <property name="text">
+               <string>Scale Image Up</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="scaleDownBtn">
+              <property name="styleSheet">
+               <string notr="true">background-color: rgb(70, 70, 70);</string>
+              </property>
+              <property name="text">
+               <string>Scale Image Down</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="filenameText">
+              <property name="font">
+               <font>
+                <pointsize>12</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>Filename: *.png</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </item>
          </layout>
@@ -128,6 +154,40 @@
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_4">
         <item>
+         <widget class="QLabel" name="frameLabel">
+          <property name="minimumSize">
+           <size>
+            <width>63</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>63</width>
+            <height>10</height>
+           </size>
+          </property>
+          <property name="font">
+           <font>
+            <family>Courier</family>
+           </font>
+          </property>
+          <property name="text">
+           <string>9999/9999</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSlider" name="recSlider">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QLabel" name="curTimeLabel">
           <property name="minimumSize">
            <size>
@@ -138,7 +198,7 @@
           <property name="maximumSize">
            <size>
             <width>200</width>
-            <height>16777215</height>
+            <height>200</height>
            </size>
           </property>
           <property name="font">
@@ -155,18 +215,11 @@
          </widget>
         </item>
         <item>
-         <widget class="QSlider" name="horizontalSlider">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QPushButton" name="recordBtn">
           <property name="maximumSize">
            <size>
-            <width>50</width>
-            <height>16777215</height>
+            <width>62</width>
+            <height>60</height>
            </size>
           </property>
           <property name="styleSheet">
@@ -175,6 +228,10 @@
           <property name="text">
            <string>Record</string>
           </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>images/rec2.png</normaloff>images/rec2.png</iconset>
+          </property>
          </widget>
         </item>
         <item>
@@ -182,7 +239,7 @@
           <property name="maximumSize">
            <size>
             <width>50</width>
-            <height>16777215</height>
+            <height>60</height>
            </size>
           </property>
           <property name="styleSheet">
@@ -191,6 +248,10 @@
           <property name="text">
            <string>Play</string>
           </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>images/play.png</normaloff>images/play.png</iconset>
+          </property>
          </widget>
         </item>
         <item>
@@ -198,7 +259,7 @@
           <property name="maximumSize">
            <size>
             <width>50</width>
-            <height>16777215</height>
+            <height>60</height>
            </size>
           </property>
           <property name="styleSheet">
@@ -212,11 +273,18 @@
        </layout>
       </item>
       <item>
+       <widget class="Line" name="line_2">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
          <widget class="QLabel" name="label_2">
           <property name="text">
-           <string>Press Space/Right to advance frame, Backspace/Left to go back a frame</string>
+           <string>Press Space/, to advance frame, Backspace/. to go back a frame</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -240,7 +308,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QCheckBox" name="checkBox_2">
+         <widget class="QCheckBox" name="timingBox">
           <property name="minimumSize">
            <size>
             <width>0</width>
@@ -262,7 +330,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QCheckBox" name="checkBox">
+         <widget class="QCheckBox" name="audioBox">
           <property name="maximumSize">
            <size>
             <width>82</width>
@@ -288,7 +356,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>888</width>
+     <width>800</width>
      <height>25</height>
     </rect>
    </property>
