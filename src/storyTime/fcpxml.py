@@ -1,47 +1,50 @@
-'''
-Created on Jun 13, 2011
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+core.py
 
-@author: clewis
+Created by Chris Lewis on 2011-06-13.
+Copyright (c) 2012 Moonbot Studios. All rights reserved.
 
-fcpxml - Provides an easy interface to working with Final Cut Pro XML files
+Provides an easy interface for working with Final Cut Pro XML files
+"""
 
-NOTICE: Files should be referenced from the network instead of local paths
-'''
+from PIL import Image
+import logging
 import os
 import re
 import xml.dom.minidom as minidom
 
-from PIL import Image
-import hourglass
+LOG = logging.getLogger('storyTime.fcpxml')
 
 
 #Ugly, ugly, lazy hack to format XML correctly
-def fixed_writexml(self, writer, indent="", addindent="", newl=""):
+def fixed_writexml(self, writer, indent='', addindent='', newl=''):
     # indent = current indentation
     # addindent = indentation to add to higher levels
     # newl = newline string
-    writer.write(indent+"<" + self.tagName)
+    writer.write(indent+'<' + self.tagName)
 
     attrs = self._get_attributes()
     a_names = attrs.keys()
     a_names.sort()
 
     for a_name in a_names:
-        writer.write(" {0}=\"".format(a_name))
+        writer.write(' {0}="'.format(a_name))
         minidom._write_data(writer, attrs[a_name].value)
-        writer.write("\"")
+        writer.write('"')
     if self.childNodes:
         if len(self.childNodes) == 1 and self.childNodes[0].nodeType == minidom.Node.TEXT_NODE:
-            writer.write(">")
-            self.childNodes[0].writexml(writer, "", "", "")
-            writer.write("</{0}>{1}".format(self.tagName, newl))
+            writer.write('>')
+            self.childNodes[0].writexml(writer, '', '', '')
+            writer.write('</{0}>{1}'.format(self.tagName, newl))
             return
-        writer.write(">{0}".format(newl))
+        writer.write('>{0}'.format(newl))
         for node in self.childNodes:
             node.writexml(writer,indent+addindent,addindent,newl)
-        writer.write("{0}</{1}>{2}".format(indent,self.tagName,newl))
+        writer.write('{0}</{1}>{2}'.format(indent,self.tagName,newl))
     else:
-        writer.write("/>{0}".format(newl))
+        writer.write('/>{0}'.format(newl))
 
 
 class FcpXmlError(Exception):
@@ -304,18 +307,5 @@ class FcpXml(object):
         return 'file://localhost/' + path.replace(':', '%3a').replace(' ', '%20').replace('\\', '/')
     
     def convertPathMac(self, path):
-        drive = os.path.splitdrive(path)[0] + '\\'
-        mapping = ''
-        for project in hourglass.all_projects():
-            if project['paths'].has_key('network'):
-                if project['paths']['network'] == drive:
-                    mapping = project['mappings']['network']
-        if mapping != '':
-            path = path.replace(os.path.splitdrive(path)[0], mapping[mapping.index('/projects/'):])
-            path = path.replace(':', '%3a').replace(' ', '%20').replace('\\', '/')
-            path = 'file://localhost/Volumes/HOME' + path
-        else:
-            path = path.replace(':', '%3a').replace(' ', '%20').replace('\\', '/')
-            path = 'file://localhost/Volumes/HOME' + os.path.splitdrive(path)[1]
-        return path
-    
+        LOG.warning('FcpXml.convertPathMac has not been implemented yet.')
+        return convertPathWin(path)
