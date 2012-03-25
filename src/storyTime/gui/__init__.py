@@ -111,6 +111,7 @@ class StoryTimeModel(object):
             'audioPath':'',
             'recordTiming':True,
             'recordAudio':True,
+            'loop':True,
             'timecode':0,
             'countdown':None,
             'countdownms':0
@@ -205,8 +206,10 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         paths.sort()
         if len(paths) > 0:
             #self.times.set([1000 for x in range(0,len(self.images.get()))])
+            n = 1
             for i in paths:
-            	    self.timing_data.get().append({'timing':1000,'image':i})
+                self.timing_data.get().append({'timing':1000,'image':i, 'imageNum':n})
+                n += 1
             self.images.set(paths)
             self.startFrame.set(1)
             self.curFrame.set(1)
@@ -335,6 +338,7 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         """Go to the given frame in timing_data"""
         if len(self.timing_data.get()) > 0:
             self.curFrame.set(frame)
+            self.curImgFrame.set(self.timing_data.get()[frame-1]['imageNum'])
     
     def ctl_goto_imgframe(self, frame):
         """Go to the given frame from images"""
@@ -349,14 +353,20 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
             self.ctl_stop()
         elif self.recording.get() == self.BUTTON_STATES.ON and self.recordTiming.get():
             self.ctl_record_frame()
+        if self.loop.get() and self.curImgFrame.get() == len(self.images.get()):
+            self.curImgFrame.set(1)
+            return
         self.curImgFrame.set(self.curImgFrame.get() + 1)
-        
+    
     def ctl_dec_frame(self):
         """Decrement the current frame"""
         if not len(self.images.get()) > 0 :
             return
         if self.recording.get() == self.BUTTON_STATES.ON and self.recordTiming.get():
             self.ctl_record_frame()
+        if self.loop.get() and self.curImgFrame.get() == 1:
+            self.curImgFrame.set(len(self.images.get()))
+            return
         self.curImgFrame.set(self.curImgFrame.get() - 1)
     
     def ctl_record_frame(self):
@@ -367,7 +377,7 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
     	eg. [{'image':'currentImage.jpg', 'time':<currentTime>}, ...]
     	"""
     	self.timing_data.get().append({'image':self.images.get()[self.curImgFrame.get() - 1],
-    		'timing':self.view_update_timer()})
+    	   'timing':self.view_update_timer(), 'imageNum':(self.curImgFrame.get() -1)})
         
     def ctl_stop(self):
         """Stop playback and recording"""
@@ -384,7 +394,6 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         """Whilst playing, increment the frame """
         if self.curFrame.get() == len(self.timing_data.get()):
             self.ctl_stop()
-            print 'stopped'
             return
         elif (self.playing.get() == self.BUTTON_STATES.ON) or (self.recording.get() == self.BUTTON_STATES.ON and not self.recordTiming.get()):
             self.curFrame.set(self.curFrame.get() + 1)
@@ -418,6 +427,9 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
             self.recording.set(self.BUTTON_STATES.DISABLED)
         else:
             self.recording.set(self.BUTTON_STATES.OFF)
+    
+    def ctl_toggle_loop(self, value):
+        self.loop.set(value)
     
     def ctl_toggle_record_audio(self, value):
         self.recordAudio.set(value)

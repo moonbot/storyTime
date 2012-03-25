@@ -104,8 +104,8 @@ class StoryView(QMainWindow, StoryTimeControl):
         self.connect(self.ui.actionImport_Directory, SIGNAL("triggered()"), self.cb_import_directory)
         self.connect(self.ui.actionSave, SIGNAL("triggered()"), self.cb_save)
         self.connect(self.ui.actionSave_As, SIGNAL("triggered()"), self.cb_save)
-        #self.connect(self.ui.actionExport_To_FCP, SIGNAL("triggered()"), self.cb_save_as)
-        #self.connect(self.ui.actionExport_To_Premiere, SIGNAL("triggered()"), self.cb_export_premiere)
+        self.connect(self.ui.actionExport_to_Final_Cut_Pro, SIGNAL("triggered()"), self.cb_save_as)
+        self.connect(self.ui.actionExport_to_Premiere, SIGNAL("triggered()"), self.cb_export_premiere)
         
     # Inherited View Functions
     # ------------------------
@@ -189,44 +189,22 @@ class StoryView(QMainWindow, StoryTimeControl):
         if event.key()==Qt.Key_Backspace or event.key()==Qt.Key_Comma:
             self.ctl_dec_frame()
             
-    #def resizeEvent(self, event):    	
-    	# if len(self.images.get()) != 0:
-    		# dScreen = self.ui.graphicsView_2.geometry()
-    		# if dScreen.height() != self.oldHeight:
-		        # print('resizing')
-			# pixmap = QPixmap(self.images.get()[0])
-			# pixmap.scaledToHeight(dScreen.height(), Qt.FastTransformation)
-			# self.curImage = QGraphicsPixmapItem(pixmap)
-			# displayWidth = pixmap.width()
-			# displayHeight = pixmap.height()
-			# print 'displayWidth: ' + str(displayWidth)
-			# print 'dScreen width: ' + str(dScreen.width())
-			# print 'displayHeight: ' + str(displayHeight)
-			# print 'dScreen Height: ' + str(dScreen.height()) + '\n'
-			# self.curImage.scale(2.0, 2.0)
-			# self.curImage.setTransformationMode(Qt.FastTransformation)
-			# displayWidth = pixmap.width()
-			# displayHeight = pixmap.height()
-			# imgScale = 1.0 
-			# print 'displayWidth: ' + str(displayWidth)
-			# print 'dScreen width: ' + str(dScreen.width())
-			# print 'displayHeight: ' + str(displayHeight)
-			# print 'dScreen Height: ' + str(dScreen.height()) + '\n'
-			# while(displayWidth > dScreen.width() or
-			#     displayHeight > dScreen.height()):
-			#     displayWidth /= 2
-			#     displayHeight /= 2
-			#     imgScale /= 2
-			# print 'displayHeight: ' + str(displayHeight)
-			# print 'displayWidth: ' + str(displayWidth)		
-			# self.curImage.scale(imgScale, imgScale)
-			# self.curImage.setTransformationMode(Qt.FastTransformation)
-			# self.scene.addItem(self.curImage)
-			# self.ui.graphicsView_2.setFixedSize(displayWidth, displayHeight)
-			# self.setGeometry(QRect(1,1,1,1))
-			# print('resized')
-	#self.center_window()
-        
+            
+    def resizeEvent(self, event):
+        if self.curImage == None:
+            return
+        pix = self.curImage.pixmap() 
+        scaleh = 1.0*(event.size().height()-179)/pix.height()
+        scalew = 1.0*event.size().width()/pix.width()
+        scale = scaleh
+        if scaleh > scalew:
+            scale = scalew
+        self.curImage.resetTransform()
+        self.curImage.scale(scale,scale)
+        self.curImage.setTransformationMode(Qt.FastTransformation)
+        self.ui.graphicsView_2.setMaximumSize(scale*pix.width(),pix.height()*scale)
+        self.ui.graphicsView_2.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.ui.graphicsView_2.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     	
 	#self.center_window()
     	#size = self.geometry()
@@ -276,7 +254,8 @@ class StoryView(QMainWindow, StoryTimeControl):
         """Set up sliders"""
         self.ui.timeSlider.setValue(self.curImgFrame.get())
         self.ui.recSlider.setValue(self.curFrame.get())
-        
+        self.ui.recSlider.setRange(1,len(self.timing_data.get()))
+
         """Set up (# current image)/(# total images)"""
         totalImages = len(self.images.get())
         curImageStr = utils.fmt_leading_zeroes(self.curImgFrame.get(), len(str(totalImages)))
@@ -310,39 +289,40 @@ class StoryView(QMainWindow, StoryTimeControl):
               displayHeight > dScreen.height()):
             displayWidth /= 2.0
             displayHeight /= 2.0
-            imgScale /= 2.0
-            self.imageScaler = self.imageScaler * 2.0
-	    self.curImage.scale(imgScale, imgScale)
+            imgScale /= 2
+        self.curImage.scale(imgScale, imgScale)
         self.curImage.setTransformationMode(Qt.FastTransformation)
         self.scene.addItem(self.curImage)
         #self.ui.graphicsView_2.setFixedSize(displayWidth+5, displayHeight+5)
-        self.ui.graphicsView_2.setMinimumSize(displayWidth+5, displayHeight+5)
+        self.ui.graphicsView_2.setMaximumSize(5+self.curImage.pixmap().size().width()*self.imageScaler, 5+ self.curImage.pixmap().size().height()*self.imageScaler)
+        self.ui.graphicsView_2.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff) 
+        self.ui.graphicsView_2.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff) 
         self.setGeometry(QRect(1,1,1,1))
         self.center_window()
         self.ui.timeSlider.setRange(1,len(self.images.get()))
-        self.ui.recSlider.setRange(1,len(self.images.get()))
     
     def scale_image_up(self):
         if self.curImage == None:
             return
-        pix = self.curImage.pixmap()
-        #print 'WIDGET SIZE height: {0}, width: {1}'.format(str(self.ui.height()), str(self.ui.width()))
-        self.curImage.scale(1.5,1.5)
+        self.curImage.resetTransform()
+        self.imageScaler = self.imageScaler + 0.1
+        self.curImage.scale(self.imageScaler,self.imageScaler)
         self.curImage.setTransformationMode(Qt.FastTransformation)
         pix = self.curImage.pixmap()
-        self.imageScaler = self.imageScaler / 1.5
-        self.ui.graphicsView_2.setMinimumSize(5 +(pix.width()/self.imageScaler), 5 +(pix.height()/self.imageScaler))
+        self.ui.graphicsView_2.setMaximumSize(5+(pix.width()*self.imageScaler), 5+(pix.height()*self.imageScaler))
+        self.setGeometry(QRect(1,1,1,1))
+
     
     def scale_image_down(self):
         if self.curImage == None:
             return
-        pix = self.curImage.pixmap()
-        #print 'WIDGET SIZE height: {0}, width: {1}'.format(str(self.ui.height()), str(self.ui.width()))
-        self.curImage.scale(0.5,0.5)
+        self.curImage.resetTransform()
+        self.imageScaler = self.imageScaler - 0.1
+        self.curImage.scale(self.imageScaler,self.imageScaler)
         self.curImage.setTransformationMode(Qt.FastTransformation)
         pix = self.curImage.pixmap()
-        self.imageScaler = self.imageScaler / .5
-        self.ui.graphicsView_2.setMaximumSize(5 +(pix.width()/self.imageScaler), 5 +(pix.height()/self.imageScaler))
+        self.ui.graphicsView_2.setMaximumSize(5+(pix.width()*self.imageScaler), 5+(pix.height()*self.imageScaler))
+        self.setGeometry(QRect(1,1,1,1))
 
     
     def ob_fps_options(self):
@@ -393,15 +373,7 @@ class StoryView(QMainWindow, StoryTimeControl):
     @pyqtSlot(name='on_playBtn_clicked')
     def cb_play_clicked(self):
         self.ctl_toggle_play()
-    
-    @pyqtSlot(name='on_scaleUpBtn_clicked')
-    def cb_scaleUp_clicked(self):
-        self.scale_image_up()
-
-    @pyqtSlot(name='on_scaleDownBtn_clicked')
-    def cb_scaleDown_clicked(self):
-        self.scale_image_down()
-    
+        
     @pyqtSlot(name='on_action24_triggered')
     def cb_24_triggered(self):
         self.ctl_change_fps(0)
@@ -457,3 +429,7 @@ class StoryView(QMainWindow, StoryTimeControl):
     @pyqtSlot(int, name='on_audioBox_stateChanged')
     def cb_audiobox_statechanged(self, value):
         self.ctl_toggle_record_audio(value)
+        
+    @pyqtSlot(int, name='on_loopBox_stateChanged')
+    def cb_loopbox_statechanged(self, value):
+        self.ctl_toggle_loop(value)

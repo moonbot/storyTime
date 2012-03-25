@@ -172,11 +172,11 @@ class FcpXml(object):
         sc = self.addChild('samplecharacteristics', format)
         self.addRate(sc)
         if self.settings['os'] == 'win':
-            self.addChild('width', sc, self.settings['videowidthPremiere'])
-            self.addChild('height', sc, self.settings['videoheightPremiere'])
+            self.addChild('width', sc, self.settings['width'])
+            self.addChild('height', sc, self.settings['height'])
         elif self.settings['os'] == 'mac':
-            self.addChild('width', sc, self.settings['videowidthFCP'])
-            self.addChild('height', sc, self.settings['videoheightFCP'])
+            self.addChild('width', sc, self.settings['width'])
+            self.addChild('height', sc, self.settings['height'])
         else:
             raise FcpXmlError('Not a valid os')
         self.addChild('anamorphic', sc, 'FALSE')
