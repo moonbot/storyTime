@@ -370,6 +370,9 @@ class StoryTimeModel(object):
         else:
             return 'Custom ({0} fps)'.format(fps)
     
+    
+    # recordings manipulation
+    
     @property
     def curFrameRecording(self):
         return self.curRecording.frames
@@ -386,5 +389,22 @@ class StoryTimeModel(object):
     def new_recording(self):
         self.curRecording = RecordingCollection()
         self.recordings.append(self.curRecording)
+    
+    
+    # image collection methods
+    
+    @property
+    def images(self):
+        return self.imageCollection.images
+    
+    def curImage(self):
+        return self.imageCollection.current()
+    
+    def prevImage(self):
+        return self.imageCollection.prev()
+    
+    def nextImage(self):
+        return self.imageCollection.next()
+    
 
 
