@@ -1,4 +1,9 @@
+"""
+model.py
 
+Created by Bohdon Sayre on 2012-03-26.
+Copyright (c) 2012 Moonbot Studios. All rights reserved.
+"""
 
 from storyTime import utils
 import logging

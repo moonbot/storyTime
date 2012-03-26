@@ -1,4 +1,9 @@
+"""
+controller.py
 
+Created by Bohdon Sayre on 2012-03-26.
+Copyright (c) 2012 Moonbot Studios. All rights reserved.
+"""
 
 from storyTime.audio import AudioHandler
 from storyTime.fcpxml import FcpXml
