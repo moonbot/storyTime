@@ -6,21 +6,32 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
 from PyQt4 import QtCore, QtGui
+from storyTime.ui import mainUI
 import logging
+import sys
 
-LOG = logging.getLogger('storyTime.view')
+LOG = logging.getLogger(__name__)
+
+_APP = None
+
+def init_app():
+    global _APP
+    if _APP is None:
+        _APP = QtGui.QApplication(sys.argv)
+        _APP.setStyle('Plastique')
+    return _APP
+
+def app():
+    return init_app()
 
 
-class StoryTimeView(QtGui.QWidget):
-    
+class StoryTimeView(QtGui.QMainWindow):
     def __init__(self, parent=None):
-        super(StoryTimeView, self).__init__(parent)
-    
-    def show(self):
-        app = QtGui.QApplication(sys.argv)
-        app.setStyle('Plastique')
-        self.show()
-        return app.exec_()
+        super(QtGui.QWidget, self).__init__(parent)
+        self.ui = mainUI.Ui_MainWindow()
+        self.ui.setupUi(self)
+        self.setWindowTitle('Story Time')
+        LOG.debug('View Initialized')
 
 
 class StoryTimeControlUI(object):

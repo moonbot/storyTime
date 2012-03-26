@@ -5,28 +5,25 @@ Created by Bohdon Sayre on 2012-03-26.
 Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
-from storyTime.audio import AudioHandler
-from storyTime.fcpxml import FcpXml
+#from storyTime.audio import AudioHandler
+#from storyTime.fcpxml import FcpXml
 
-import xml.dom.minidom
+#import xml.dom.minidom
 import logging
 
-LOG = logging.getLogger('storyTime.controller')
+LOG = logging.getLogger(__name__)
 
 
 class StoryTimeController(object):
-    
     def __init__(self, model, view):
+        LOG.debug('Controller Initialized')
         self.model = model
         self.view = view
-    
-    def run(self):
-        return self.view.run()
 
 
 class StoryTimeControl(object):
     
-    audioHandler = AudioHandler()
+    #audioHandler = AudioHandler()
     UPDATE_INTERVAL = 500
     
     def __init__(self, model, view):

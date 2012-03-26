@@ -8,7 +8,7 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 from storyTime import utils
 import logging
 
-LOG = logging.getLogger('storyTime.model')
+LOG = logging.getLogger(__name__)
 
 
 class StoryTimeModel(object):
@@ -16,6 +16,7 @@ class StoryTimeModel(object):
     BUTTON_STATES = utils.enum('OFF', 'ON', 'DISABLED')
     
     def __init__(self):
+        LOG.debug('Model Initialized')
         pass
     
     def init_model(self):
