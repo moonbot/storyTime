@@ -1,133 +1,32 @@
 
-import logging
-import sys
-import os
-import re
-import xml.dom.minidom
 
-from storyTime import utils
 from storyTime.audio import AudioHandler
 from storyTime.fcpxml import FcpXml
 
-LOG = logging.getLogger('storyTime.gui')
+import xml.dom.minidom
+import logging
+
+LOG = logging.getLogger('storyTime.controller')
 
 
-def run_gui(**kwargs):
-    import qt
-    """Run the Sync Gui"""
-    qt.run_gui()
+class StoryTimeController(object):
     
-class StoryTimeControlUI(object):
+    def __init__(self, model, view):
+        self.model = model
+        self.view = view
     
-    # Main View Functions
-    # -------------------
-    
-    def view_browse_open(self, caption):
-        """Return the path of the selected file"""
-        raise NotImplementedError
-    
-    def view_browse_open_dir(self, caption):
-        """Return the path of the selected directory"""
-        raise NotImplementedError
-    
-    def view_browse_save_as(self, caption):
-        """Return the path of the selected file"""
-        raise NotImplementedError
-    
-    def view_update_timer(self):
-        """Refresh the timer and returns the time since the previous call"""
-        raise NotImplementedError
-    
-    def view_start_timer(self, ms):
-        """Start a timer to call an event in ms milliseconds"""
-        raise NotImplementedError
-    
-    def view_start_disp_timer(self):
-        """Start the timer used for the UI's timecode"""
-        raise NotImplementedError
-    
-    def view_stop_disp_timer(self):
-        """Stop the timer used for the UI's timecode"""
-        raise NotImplementedError
-    
-    def view_query_custom_fps(self):
-        """Query the user for a custom fps and return the value"""
-        raise NotImplementedError
-    
-    def view_query_countdown_time(self):
-        """Query the user for a countdown time and return the value"""
-        raise NotImplementedError
-    
-    def view_get_image_formats(self):
-        """Return a list of valid image formats"""
-        raise NotImplementedError
-    
-    # Observer View Functions
-    # -----------------------
-    
-    def ob_recording(self):
-        raise NotImplementedError
-    
-    def ob_playing(self):
-        raise NotImplementedError
-    
-    def ob_cur_frame(self):
-        raise NotImplementedError
-    
-    def ob_images(self):
-        raise NotImplementedError
-    
-    def ob_fps_options(self):
-        raise NotImplementedError
-    
-    
-class StoryTimeModel(object):
-    
-    BUTTON_STATES = utils.enum('OFF', 'ON', 'DISABLED')
-    
-    def init_model(self):
-        FPS_OPTIONS = [
-            ['Film (24 fps)', 24],
-            ['PAL (25 fps)', 25],
-            ['NTSC (30 fps)', 30],
-            ['Show (48 fps)', 48],
-            ['PAL Field (50 fps)', 50],
-            ['NTSC Field (60 fps)', 60],
-            ['Custom...', 12]
-        ]
-        # TODO: replace the `times` list with a `data` list that will hold
-        #	image/time data not associated with the images list
-        model = {
-            'recording':self.BUTTON_STATES.OFF,
-            'playing':self.BUTTON_STATES.OFF,
-            'startFrame':0,
-            'curFrame':0,
-            'curImgFrame':1,
-            'timing_data':[],
-            'images':[],
-            'fps':24,
-            'fpsOptions':FPS_OPTIONS,
-            'fpsIndex':0,
-            'savePath':'',
-            'audioPath':'',
-            'recordTiming':True,
-            'recordAudio':True,
-            'loop':True,
-            'timecode':0,
-            'countdown':None,
-            'countdownms':0
-        }
-        self.add_observables(model)
-        
-    def add_observables(self, data):
-        for key in data.keys():
-            data[key] = utils.Observable(data[key])
-        self.__dict__.update(data)
-        
-class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
+    def run(self):
+        return self.view.run()
+
+
+class StoryTimeControl(object):
     
     audioHandler = AudioHandler()
     UPDATE_INTERVAL = 500
+    
+    def __init__(self, model, view):
+        self.model = model
+        self.view = view
     
     def observe_model(self):
         """Add necessary observer functions to observable objects"""
