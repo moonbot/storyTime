@@ -13,7 +13,7 @@ import os
 import re
 import xml.dom.minidom as minidom
 
-LOG = logging.getLogger('storyTime.fcpxml')
+LOG = logging.getLogger(__name__)
 
 
 #Ugly, ugly, lazy hack to format XML correctly
@@ -305,5 +305,6 @@ class FcpXml(object):
         return 'file://localhost/' + path.replace(':', '%3a').replace(' ', '%20').replace('\\', '/')
     
     def convertPathMac(self, path):
-        LOG.warning('FcpXml.convertPathMac has not been implemented yet.')
+        LOG.warning('not yet implemented')
         return convertPathWin(path)
+
