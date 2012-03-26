@@ -46,10 +46,3 @@ def get_latest_version(dirname):
         return sorted(matches)[-1]
     except:
         return None
-    
-def fmt_leading_zeroes(int_, minLength):
-    str_ = str(int_)
-    if minLength > len(str_):
-        zeroStr = ''.join(['0' for x in range(minLength)])
-        str_ = zeroStr[:minLength - len(str_)] + str_
-    return str_

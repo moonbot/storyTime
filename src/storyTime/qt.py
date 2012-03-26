@@ -252,10 +252,10 @@ class StoryView(QMainWindow, StoryTimeControl):
 
         """Set up (# current image)/(# total images)"""
         totalImages = len(self.images.get())
-        curImageStr = utils.fmt_leading_zeroes(self.curImgFrame.get(), len(str(totalImages)))
+        curImageStr = '{0:0{pad}}'.format(self.curImgFrame.get(), pad=len(str(totalImages)))
         label = '{0}/{1}'.format(curImageStr, totalImages)
         totalFrames = len(self.timing_data.get())
-        curFrameStr = utils.fmt_leading_zeroes(self.curFrame.get(), len(str(totalFrames)))
+        curFrameStr = '{0:0{pad}}'.format(self.curFrame.get(), pad=len(str(totalFrames)))
         label2 = '{0}/{1}'.format(curFrameStr, totalFrames)
         """Setting up the labels"""
         self.ui.timeLabel.setText(QString(label))
