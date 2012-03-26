@@ -11,7 +11,7 @@ import os
 
 LOG = logging.getLogger(__name__)
 
-FPS_LABELS = {
+FPS_OPTIONS = {
     24:'Film (24 fps)',
     25:'PAL (25 fps)',
     30:'NTSC (30 fps)',
@@ -24,12 +24,12 @@ DEFAULT_IMAGE_TYPES = [
     'jpg', 'jpeg', 'png', 'tif', 'tiff', 'tga',
 ]
 
-class Recording(object):
+class FrameRecording(object):
     """
     A recording created by Story Time. Times are stored
     in frames as Story Time is primarily a frame-based tool.
     
-    Recordings provide a pretty expansive interface for modification.
+    FrameRecordings provide a pretty expansive interface for modification.
     This includes subscription and iteration akin to a list,
     eg. myRecording[4:12] to retrieve frames 4 through 12.
     """
@@ -39,7 +39,7 @@ class Recording(object):
         self._frames = []
     
     def __repr__(self):
-        return '<Recording | {0.start}-{0.end}@{0.fps} | {1} frame(s)>'.format(self, len(self.frames))
+        return '<FrameRecording | {0.start}-{0.end}@{0.fps} | {1} frame(s)>'.format(self, len(self.frames))
     
     def __iter__(self):
         for f in self.frames:
@@ -55,29 +55,32 @@ class Recording(object):
             raise TypeError
         del self._frames[key]
     
+    def __len__(self):
+        return len(self._frames)
+    
     def __add__(self, other):
-        if isinstance(other, Recording):
+        if isinstance(other, FrameRecording):
             new = copy.deepcopy(self)
             for f in other:
                 new.append(f.image, f.duration)
             return new
         return NotImplemented
     
-    def getFrames(self):
+    @property
+    def frames(self):
         return self._frames
-    frames = property(getFrames)
     
-    def getEnd(self):
+    @property
+    def end(self):
         return self.start + self.duration
-    end = property(getEnd)
     
-    def getDuration(self):
+    @property
+    def duration(self):
         return sum([f.duration for f in self.frames])
-    duration = property(getDuration)
     
-    def getIndeces(self):
-        return range(len(self.frames))
-    indeces = property(getIndeces)
+    @property
+    def images(self):
+        return sorted(list(set([f.image for f in self.frames])))
     
     def clear(self):
         self._frames = []
@@ -91,7 +94,7 @@ class Recording(object):
         self._frames.insert(index, f)
     
     def insert_recording(self, other):
-        if isinstance(other, Recording):
+        if isinstance(other, FrameRecording):
             new = copy.deepcopy(self)
         raise TypeError
     
@@ -134,7 +137,7 @@ class Recording(object):
 
 class Frame(object):
     """
-    A specific frame within a Recording. Frames only care about the
+    A specific frame within a FrameRecording. Frames only care about the
     image they represent and how long that image is displayed. Their
     cut information is stored in the recording.
     """
@@ -179,6 +182,36 @@ class Frame(object):
 
 
 
+class AudioRecording(object):
+    """
+    An audio recording. Times are represented in seconds.
+    """
+    def __init__(self):
+        self.mtime = 0
+        self.duration = 0
+    
+    def __repr__(self):
+        return '<AudioRecording | {0.duration} sec>'.format(self) 
+
+class VideoRecording(object):
+    pass
+
+
+class RecordingCollection(object):
+    """
+    RecordingCollection keeps track of a FrameRecording and AudioRecording pair.
+    The main Story Time model creates a list of recording collections to
+    associate frame timings with audio recordings.
+    """
+    def __init__(self, frames=None, audio=None):
+        self.frames = frames if frames is not None else FrameRecording()
+        self.audio = audio if audio is not None else AudioRecording()
+        # self.video = video if video is not None else VideoRecording()
+    
+    def __repr__(self):
+        return '<RecordingCollection {0!r} {1!r}>'.format(self.frames, self.audio)
+
+
 class ImageCollection(object):
     """
     A collection of images to be sample from during a Story Time recording.
@@ -207,6 +240,9 @@ class ImageCollection(object):
         if not isinstance(key, (int, slice)):
             raise TypeError
         del self._images[key]
+    
+    def __len__(self):
+        return len(self._images)
     
     def __repr__(self):
         return '<ImageCollection {0} image(s) | @{1.seek}>'.format(len(self.images), self)
@@ -285,34 +321,70 @@ class ImageCollection(object):
         return self[self.seek]
 
 
-
 class StoryTimeModel(object):
     def __init__(self):
-        self.fps_labels = FPS_LABELS
-        self.fps = 24
-        self.isRecording = False
-        self.isPlaying = False
+        # File Settings
+        self.workingDir = os.getcwd()
         
-        self.startFrame = 0
-        model = {
-            'recording':self.BUTTON_STATES.OFF,
-            'playing':self.BUTTON_STATES.OFF,
-            'startFrame':0,
-            'curFrame':0,
-            'curImgFrame':1,
-            'timing_data':[],
-            'images':[],
-            'fps':24,
-            'fpsOptions':FPS_OPTIONS,
-            'fpsIndex':0,
-            'savePath':'',
-            'audioPath':'',
-            'recordTiming':True,
-            'recordAudio':True,
-            'loop':True,
-            'timecode':0,
-            'countdown':None,
-            'countdownms':0
-        }
+        # Recording / Playback
+        self._isRecording = False
+        self._isPlaying = False
+        self._fpsOptions = FPS_OPTIONS
+        self.customFps = 12
+        self.fps = 24
+        self.loop = True
+        # all recording collections
+        self.recordings = []
+        # currently loaded/active recording collection
+        self.curRecording = None
+        # current time of the playback timeline
+        self.curTime = 0
+        # current image collection
+        self.imageCollection = ImageCollection()
         LOG.debug('Model Initialized')
+    
+    def __repr__(self):
+        return '<StoryTimeModel | {0} recording(s)>'.format(len(self.recordings))
+    
+    @property
+    def isRecording(self):
+        return self._isRecording
+    
+    @property
+    def isPlaying(self):
+        return self._isPlaying
+    
+    @property
+    def fpsList(self):
+        return sorted(self._fpsOptions.keys()) + [self.customFps]
+    
+    @property
+    def fpsOptions(self):
+        opts = self._fpsOptions.copy()
+        opts.update( {self.customFps:self.fps_label(self.customFps)} )
+        return opts
+    
+    def fps_label(self, fps):
+        if fps in self._fpsOptions.keys():
+            return self._fpsOptions[key]
+        else:
+            return 'Custom ({0} fps)'.format(fps)
+    
+    @property
+    def curFrameRecording(self):
+        return self.curRecording.frames
+    
+    @property
+    def curAudioRecording(self):
+        return self.curRecording.audio
+    
+    def load_recording(self, index):
+        if index < 0 or index >= len(self.recordings):
+            raise IndexError
+        self.curRecording = self.recordings[index]
+    
+    def new_recording(self):
+        self.curRecording = RecordingCollection()
+        self.recordings.append(self.curRecording)
+
 
