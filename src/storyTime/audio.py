@@ -1,8 +1,9 @@
-'''
-Created on Jun 16, 2011
+"""
+audio.py
 
-@author: clewis
-'''
+Created by Chris Lewis on 2011-06-16.
+Copyright (c) 2012 Moonbot Studios. All rights reserved.
+"""
 
 import threading
 import wave

@@ -1,4 +1,7 @@
-import sys, os
+
+import logging
+import os
+import sys
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -8,14 +11,14 @@ from countdown import Ui_Dialog
 from storyTime.gui import StoryTimeControl
 from storyTime import utils
 
-#LOG = get_log(__name__)
+LOG = logging.getLogger('storyTime.gui.qt')
 
 BUTTON_DEACTIVATE = 'QPushButton { background-color: rgb(70,70,70) }'
 BUTTON_ACTIVATE = 'QPushButton { background-color: rgb(255,125,125) }'
 
 def run_gui(**kwargs):
     """Create an instance of the sync gui and show it."""
-    #LOG.debug('Initializing StoryTime Gui...')
+    LOG.debug('Initializing StoryTime Gui...')
     app = QApplication(sys.argv)
     app.setStyle('Plastique')
     win = StoryView()

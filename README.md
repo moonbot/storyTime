@@ -1,5 +1,4 @@
 
-
 # Story Time
 
 Story Time is a tool that allows story artists to quickly time out scenes.
@@ -14,15 +13,3 @@ a first pass animatic quickly.
 - Export XML files for using in FCP, Premiere, etc
 - Record Audio simultaneously with board timings
 
-
-
-## Building
-
-To build, ensure that storyTime has been installed to a location available
-to python, then run `python setup_exe.py py2exe`. Within the Moonbot Windows
-environment, the complete process would be:
-
-```
-python setup.py install
-python setup_exe.py py2exe
-```

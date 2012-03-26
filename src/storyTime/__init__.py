@@ -1,34 +1,41 @@
+"""
+storyTime
+
+Created by Chris Lewis on 2011-06-13.
+Copyright (c) 2012 Moonbot Studios. All rights reserved.
+"""
+
 __version__ = '0.1.0'
-__author__ = 'Chris Lewis' #with a lot of help/reference from Bohdon Sayre
 
-import sys, os
 import logging
+import os
+import sys
 
-_LOG_LEVEL = logging.DEBUG if int(os.getenv('MBOT_DEBUG', False)) else logging.INFO
-_PATHDIR = os.path.dirname(__path__[0])
-if not os.path.isdir(_PATHDIR):
-    _PATHDIR = os.path.dirname(_PATHDIR)
-
-
-def get_log(name):
-    log = logging.getLogger(name)
-    log.setLevel(_LOG_LEVEL)
-    log.handlers = []
-    filename = os.path.join(_PATHDIR, 'storyTime.log')
-    sh = logging.FileHandler(filename)
-    f = logging.Formatter('%(asctime)s %(name)-14s %(levelname)-7s %(message)s')
-    sh.setFormatter(f)
-    sh.setLevel(_LOG_LEVEL)
-    log.addHandler(sh)
-    return log
-
-
-class StoryTimeError(Exception):
-    pass
+LOG = logging.getLogger('storyTime')
 
 def run(**kwargs):
     import gui
     gui.run_gui(**kwargs)
-    log = get_log(__name__)
-    for handle in log.handlers:
+    for handle in LOG.handlers:
         handle.close()
+
+def _setup_log():
+    level = logging.DEBUG
+    fh = _get_file_handler()
+    fh.setLevel(level)
+    LOG.addHandler(fh)
+    LOG.setLevel(level)
+
+def _get_file_handler():
+    dir_ = os.path.dirname(__path__[0])
+    # if the current path is actually a file
+    if not os.path.isdir(dir_):
+        dir_ = os.path.dirname(dir_)
+    filename = os.path.join(dir_, 'storyTime.log')
+    fmt = logging.Formatter('%(asctime)s %(name)-14s %(levelname)-7s %(message)s')
+    fh = logging.FileHandler(filename)
+    fh.setFormatter(fmt)
+    return fh
+
+
+_setup_log()

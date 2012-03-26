@@ -1,7 +1,5 @@
-#!/usr/bin/env python
-# encoding: utf-8
 """
-core.py
+fcpxml.py
 
 Created by Chris Lewis on 2011-06-13.
 Copyright (c) 2012 Moonbot Studios. All rights reserved.

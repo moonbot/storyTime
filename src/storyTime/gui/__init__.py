@@ -1,14 +1,15 @@
 
+import logging
 import sys
 import os
 import re
 import xml.dom.minidom
 
-from production import naming, publish, sequences
-
 from storyTime import utils
 from storyTime.audio import AudioHandler
 from storyTime.fcpxml import FcpXml
+
+LOG = logging.getLogger('storyTime.gui')
 
 
 def run_gui(**kwargs):
@@ -176,7 +177,9 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
             else:
                 for imageformat in self.view_get_image_formats():
                     if imageformat == ext:
-                        self.ctl_process_import(sequences.file_sequence(paths[0]))
+                        # TODO: implement internal version of sequences
+                        LOG.warning('Import Image Sequence not yet implemented...')
+                        self.ctl_process_import(paths)
     
     def ctl_open(self):
         """Browse for and open a StoryTime XML file"""
@@ -191,7 +194,8 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         """Browse for and import an image sequence"""
         path = self.view_browse_open('Import Image Sequence...')
         if path is not None and path != '':
-            self.ctl_process_import(sequences.file_sequence(path))
+            LOG.warning('Import Image Sequence not yet implemented...')
+            self.ctl_process_import(path)
             
     def ctl_import_directory(self):
         """Browse for and import an image directory"""
@@ -284,13 +288,13 @@ class StoryTimeControl(StoryTimeControlUI, StoryTimeModel):
         else:
             os.mkdir(dirname)
             filename = self.ctl_get_audio_path_name(filename)
-        #filename = os.path.join(dirname, publish.inc_version_str(filename))
         self.audioPath.set(filename)
         
     def ctl_get_audio_path_name(self, path):
         """Return the base audio filename corresponding to the given path"""
-        path = sequences.base_num_ext(os.path.split(path)[1])[0]
-        path = path.replace('.', '') + 'Audio.wav'
+        fullbase = os.path.basename(path)
+        base = fullbase.split('.')[0]
+        path = '{0}Audio.wav'.format(base)
         return path
     
     # Playback and Recording Functions
