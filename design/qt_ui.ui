@@ -23,33 +23,7 @@
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <item>
-         <spacer name="horizontalSpacer_3">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>0</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item>
          <widget class="QGraphicsView" name="graphicsView_2"/>
-        </item>
-        <item>
-         <spacer name="horizontalSpacer_2">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>0</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
         </item>
        </layout>
       </item>
@@ -99,26 +73,6 @@
               </property>
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="scaleUpBtn">
-              <property name="styleSheet">
-               <string notr="true">background-color: rgb(70, 70, 70);</string>
-              </property>
-              <property name="text">
-               <string>Scale Image Up</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="scaleDownBtn">
-              <property name="styleSheet">
-               <string notr="true">background-color: rgb(70, 70, 70);</string>
-              </property>
-              <property name="text">
-               <string>Scale Image Down</string>
               </property>
              </widget>
             </item>
