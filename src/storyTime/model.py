@@ -20,11 +20,18 @@ FPS_LABELS = {
     60:'NTSC Field (60 fps)',
 }
 
+DEFAULT_IMAGE_TYPES = [
+    'jpg', 'jpeg', 'png', 'tif', 'tiff', 'tga',
+]
+
 class Recording(object):
     """
-    Represents a specific recording created by Story Time.
-    Times are stored in frames as Story Time is primarily
-    a frame-based tool.
+    A recording created by Story Time. Times are stored
+    in frames as Story Time is primarily a frame-based tool.
+    
+    Recordings provide a pretty expansive interface for modification.
+    This includes subscription and iteration akin to a list,
+    eg. myRecording[4:12] to retrieve frames 4 through 12.
     """
     def __init__(self, fps=24):
         self.fps = fps
@@ -72,6 +79,27 @@ class Recording(object):
         return range(len(self.frames))
     indeces = property(getIndeces)
     
+    def clear(self):
+        self._frames = []
+    
+    def append(self, image, duration):
+        f = Frame(image, duration)
+        self._frames.append(f)
+    
+    def insert(self, index, image, duration):
+        f = Frame(image, duration)
+        self._frames.insert(index, f)
+    
+    def insert_recording(self, other):
+        if isinstance(other, Recording):
+            new = copy.deepcopy(self)
+        raise TypeError
+    
+    def pop(self, index):
+        if index < len(self.frames):
+            return self._frames.pop(index)
+    
+    
     def relative_time(self, time):
         """ Convert the given absolute time to a time relative to start """
         return time - self.start
@@ -101,33 +129,13 @@ class Recording(object):
             rtime = sum([f.duration for f in self.frames[:index+1]])
             return self.absolute_time(rtime)
     
-    def clear(self):
-        self._frames = []
-    
-    def append(self, image, duration):
-        f = Frame(image, duration)
-        self._frames.append(f)
-    
-    def insert(self, index, image, duration):
-        f = Frame(image, duration)
-        self._frames.insert(index, f)
-    
-    def insert_recording(self, other):
-        if isinstance(other, Recording):
-            new = copy.deepcopy(self)
-        raise TypeError
-    
-    def pop(self, index):
-        if index < len(self.frames):
-            return self._frames.pop(index)
 
 
 
 class Frame(object):
     """
-    A specific frame within a Recording.
-    Frames only care about the image they represent
-    and how long that image is displayed. Their
+    A specific frame within a Recording. Frames only care about the
+    image they represent and how long that image is displayed. Their
     cut information is stored in the recording.
     """
     def __init__(self, image, duration):
@@ -171,9 +179,114 @@ class Frame(object):
 
 
 
+class ImageCollection(object):
+    """
+    A collection of images to be sample from during a Story Time recording.
+    An image collection can be seeded with a directory or combination of images.
+    It can then be sorted and organized for better usability.
+    
+    Image collections also provide a seeking interface to keep track of which
+    image was last sampled and making it easy to get the previous/next frame.
+    Collection seeking will loop both ways.
+    """
+    def __init__(self, images=None, imageTypes=DEFAULT_IMAGE_TYPES):
+        self.imageTypes = imageTypes
+        self._seek = 0
+        self._images = images if images is not None else []
+    
+    def __iter__(self):
+        for f in self.images:
+            yield f
+    
+    def __getitem__(self, key):
+        if not isinstance(key, (int, slice)):
+            raise TypeError
+        return self.images[key]
+    
+    def __delitem__(self, key):
+        if not isinstance(key, (int, slice)):
+            raise TypeError
+        del self._images[key]
+    
+    def __repr__(self):
+        return '<ImageCollection {0} image(s) | @{1.seek}>'.format(len(self.images), self)
+    
+    def getImages(self):
+        return self._images
+    def setImages(self, value):
+        self._images = []
+        if isinstance(value, (tuple, list)):
+            for i in value:
+                if isinstance(i, (str, unicode)):
+                    self._images.append(os.path.normpath(i))
+        elif isinstance(value, (str, unicode)):
+            self._images.append(os.path.normpath(value))
+    images = property(getImages, setImages)
+    
+    def getSeek(self):
+        if self._seek < 0 or self._seek >= len(self.images):
+            # this desync is handled by clamping
+            self._seek = max(min(self._seek, len(self.images)-1), 0)
+        return self._seek
+    def setSeek(self, value):
+        if not isinstance(value, int):
+            raise TypeError
+        if len(self._images) == 0:
+            self._seek = 0
+        else:
+            self._seek = value % len(self._images)
+    seek = property(getSeek, setSeek)
+    
+    def is_valid_image(self, image):
+        types = [x.strip('.') for x in self.imageTypes]
+        ext = os.path.splitext(image)[1].strip('.')
+        return ext in types
+    
+    def clear(self):
+        self._images = []
+    
+    def append(self, image):
+        """
+        Append the given image or images to the collection.
+        This is like a combined append/extend functionality.
+        """
+        if isinstance(image, (str, unicode)):
+            self._images.append(os.path.normpath(image))
+        elif isinstance(image, (list, tuple)):
+            self._images.extend([os.path.normpath(i) for i in image])
+    
+    def extend(self, images):
+        self.append(images)
+    
+    def load_dir(self, dir_):
+        if not os.path.isdir(dir_):
+            raise OSError('directory does not exist: {0}'.format(dir_))
+        files = os.listdir(dir_)
+        self.images = [i for i in files if self.is_valid_image(i)]
+        self.sort()
+    
+    def load_sequence(self, image):
+        """ Load the image sequence associated with the given image """
+        LOG.warning('load_sequence not yet implemented')
+        self._images = image
+    
+    def sort(self, *args, **kwargs):
+        self._images.sort(*args, **kwargs)
+    
+    def current(self):
+        return self[self.seek]
+    
+    def prev(self):
+        self.seek -= 1
+        return self[self.seek]
+    
+    def next(self):
+        self.seek += 1
+        return self[self.seek]
+
+
 
 class StoryTimeModel(object):
-    
     def __init__(self):
         self.fps_labels = FPS_LABELS
         self.fps = 24
