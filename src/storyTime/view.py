@@ -32,9 +32,6 @@ class StoryTimeView(QtGui.QMainWindow):
         self.ui.setupUi(self)
         self.setWindowTitle('Story Time')
         LOG.debug('View Initialized')
-
-
-class StoryTimeControlUI(object):
     
     # Main View Functions
     # -------------------

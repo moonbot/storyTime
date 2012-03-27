@@ -203,13 +203,14 @@ class RecordingCollection(object):
     The main Story Time model creates a list of recording collections to
     associate frame timings with audio recordings.
     """
-    def __init__(self, frames=None, audio=None):
+    def __init__(self, name='Recording', frames=None, audio=None):
+        self.name = name
         self.frames = frames if frames is not None else FrameRecording()
         self.audio = audio if audio is not None else AudioRecording()
         # self.video = video if video is not None else VideoRecording()
     
     def __repr__(self):
-        return '<RecordingCollection {0!r} {1!r}>'.format(self.frames, self.audio)
+        return '<RecordingCollection {0!r} {1!r} {2!r}>'.format(self.name, self.frames, self.audio)
 
 
 class ImageCollection(object):
