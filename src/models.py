@@ -96,6 +96,10 @@ class StoryTimeModel(QAbstractItemModel):
         return len(self.images)
     
     @property
+    def imagePadding(self):
+        return len(str(self.imageCount))
+    
+    @property
     def images(self):
         return self.imageCollection.images
     
@@ -129,33 +133,35 @@ class StoryTimeModel(QAbstractItemModel):
         
         # we don't care about rows since our model
         # is essentially singular. the column is our mapping
-        mapping = index.column()
+        m = index.column()
         
-        if mapping == Mappings.imageCount:
+        if m == Mappings.imageCount:
             return self.imageCount
-        elif mapping == Mappings.curImagePath:
+        elif m == Mappings.curImagePath:
             return self.curImagePath
-        elif mapping == Mappings.curImageIndex:
+        elif m == Mappings.curImageIndex:
             return self.curImageIndex
-        elif mapping == Mappings.curImageIndexLabel:
-            return '{0:0{pad}}/{1}'.format(self.curImageIndex, self.imageCount, pad=len(str(self.imageCount)))
+        elif m == Mappings.curImageIndexLabel:
+            return '{1:0{0.imagePadding}}/{0.imageCount}'.format(self, self.curImageIndex + 1)
     
     
     def setData(self, index, value, role = Qt.EditRole):
         LOG.debug('mapping={0} value={1}'.format(Mappings.names[index.column()], value.toPyObject()))
         
-        mapping = index.column()
+        m = index.column()
         
-        if mapping == Mappings.curImageIndex:
+        if m == Mappings.curImageIndex:
             self.imageCollection.seek = value.toPyObject()
-            self.dataChanged.emit(index, index)
+            # TODO: organize this dependency stuff better
+            self.mappingChanged(m)
+            self.mappingChanged(Mappings.curImagePath)
+            self.mappingChanged(Mappings.curImageIndexLabel)
             return True
         
-        self.dataChanged.emit(index, index)
         return False
     
-    def index_range(self, start, end):
-        return (self.index(start), self.index(end))
+    def mappingChanged(self, mapping):
+        self.dataChanged.emit(self.index(0, mapping), self.index(0, mapping))
     
     def index(self, row, column=0, parent=None):
         return self.createIndex(row, column)

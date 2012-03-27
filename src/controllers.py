@@ -26,20 +26,38 @@ class StoryTimeWindow(base, form):
         self._model.imageCollection.load_dir('M:/projects/devproject/storyTime')
         LOG.debug('images: {0}'.format(len(self._model.images)))
         
+        self.imageView = ImageView(self)
+        self.imageView.setModel(self._model)
+        self.layoutImageView.addWidget(self.imageView)
+        
         self.imageSlider = ImageSlider(self)
         self.imageSlider.setModel(self._model)
-        self.layoutImageSlider.addWidget(self.imageSlider)
+        self.layoutControls.addWidget(self.imageSlider)
+        
+        self.timeSlider = TimeSlider(self)
+        self.timeSlider.setModel(self._model)
+        self.layoutControls.addWidget(self.timeSlider)
         
 
 imageSliderBase, imageSliderForm = uic.loadUiType('views/imageSlider.ui')
 
 class ImageSlider(imageSliderBase, imageSliderForm):
+    """
+    The ImageSlider widget for Story Time. Contains a slider that controls
+    which image is currently displayed, as well as labels providing information
+    about the current image path as well as how many images there are.
+    """
     def __init__(self, parent=None):
         super(ImageSlider, self).__init__(parent)
         self.setupUi(self)
         self._dataMapper = QDataWidgetMapper()
         
-        QObject.connect(self.uiImageSlider, SIGNAL('sliderMoved(int)'), self.submit)
+        self.uiImageSliderMax.setVisible(False)
+        QObject.connect(self.uiImageSliderMax, SIGNAL('valueChanged(int)'), self.uiImageSliderSetMaximum)
+        QObject.connect(self.uiImageSlider, SIGNAL('valueChanged(int)'), self.submit)
+    
+    def uiImageSliderSetMaximum(self, value):
+        self.uiImageSlider.setMaximum(value - 1)
     
     def submit(self):
         self._dataMapper.submit()
@@ -49,10 +67,47 @@ class ImageSlider(imageSliderBase, imageSliderForm):
         self._dataMapper.setModel(model)
         self._dataMapper.addMapping(self.uiImagePath, Mappings.curImagePath, 'text')
         self._dataMapper.addMapping(self.uiImageSlider, Mappings.curImageIndex, 'sliderPosition')
-        #self._dataMapper.addMapping(self.uiImageSlider, Mappings.imageCount, 'maximum')
+        self._dataMapper.addMapping(self.uiImageSliderMax, Mappings.imageCount)
         self._dataMapper.addMapping(self.uiImageSliderLabel, Mappings.curImageIndexLabel, 'text')
         self._dataMapper.setCurrentModelIndex(model.index(0))
 
+
+timeSliderBase, timeSliderForm = uic.loadUiType('views/timeSlider.ui')
+
+class TimeSlider(timeSliderBase, timeSliderForm):
+    """
+    The TimeSlider widget for Story Time. Controls/displays the current
+    playback state of the current recording.
+    """
+    def __init__(self, parent=None):
+        super(TimeSlider, self).__init__(parent)
+        self.setupUi(self)
+        self._dataMapper = QDataWidgetMapper()
+    
+    def setModel(self, model):
+        self._model = model
+        self._dataMapper.setModel(model)
+
+
+
+imageViewBase, imageViewForm = uic.loadUiType('views/imageView.ui')
+
+class ImageView(imageViewBase, imageViewForm):
+    """
+    The image viewing widget for Story Time. Contains three graphics views
+    for displaying the current, previous, and next images.
+    """
+    def __init__(self, parent=None):
+        super(ImageView, self).__init__(parent)
+        self.setupUi(self)
+        self._dataMapper = QDataWidgetMapper()
+        
+        self.uiGraphicsViewPrev.setVisible(False)
+        self.uiGraphicsViewNext.setVisible(False)
+    
+    def setModel(self, model):
+        self._model = model
+        self._dataMapper.setModel(model)
 
 
 

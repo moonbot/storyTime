@@ -271,11 +271,14 @@ class ImageCollection(object):
     def setSeek(self, value):
         if not isinstance(value, int):
             raise TypeError
-        if len(self._images) == 0:
-            self._seek = 0
-        else:
-            self._seek = value % len(self._images)
+        self._seek = self.validate_index(value)
     seek = property(getSeek, setSeek)
+    
+    def validate_index(self, value):
+        if len(self._images) == 0:
+            return 0
+        else:
+            return value % len(self._images)
     
     def is_valid_image(self, image):
         types = [x.strip('.') for x in self.imageTypes]
@@ -310,17 +313,28 @@ class ImageCollection(object):
         LOG.warning('load_sequence not yet implemented')
         self._images = image
     
-    def sort(self, *args, **kwargs):
-        self._images.sort(*args, **kwargs)
+    def sort(self, cmp_=None, key=None, reverse=False):
+        if cmp_ is None:
+            # case insensitive sort
+            cmp_ = lambda x,y: cmp(x.lower(), y.lower())
+        self._images.sort(cmp=cmp_, key=key, reverse=reverse)
     
     def current(self):
         return self[self.seek]
     
-    def prev(self):
-        self.seek -= 1
-        return self[self.seek]
+    def prev(self, seek=True):
+        if seek:
+            self.seek -= 1
+            i = self.seek
+        else:
+            i = self.validate_index(self.seek - 1)
+        return self[i]
     
-    def next(self):
-        self.seek += 1
-        return self[self.seek]
+    def next(self, seek=True):
+        if seek:
+            self.seek += 1
+            i = self.seek
+        else:
+            i = self.validate_index(self.seek + 1)
+        return self[i]
 

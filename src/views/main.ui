@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>614</width>
-    <height>490</height>
+    <width>520</width>
+    <height>323</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,234 +16,22 @@
   <property name="styleSheet">
    <string>background-color: rgb(50, 50, 50);color: rgb(255, 255, 255);selection-background-color:rgb(140, 140, 140)</string>
   </property>
-  <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0">
-     <layout class="QVBoxLayout" name="graphicsViewLayout">
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_5">
-        <item>
-         <widget class="QGraphicsView" name="graphicsView_2"/>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QVBoxLayout" name="layoutImageSlider">
-        <property name="topMargin">
-         <number>3</number>
-        </property>
-        <property name="bottomMargin">
-         <number>3</number>
-        </property>
-       </layout>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_7">
-        <item>
-         <widget class="Line" name="line">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
-        <item>
-         <widget class="QLabel" name="frameLabel">
-          <property name="minimumSize">
-           <size>
-            <width>63</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>63</width>
-            <height>10</height>
-           </size>
-          </property>
-          <property name="font">
-           <font>
-            <family>Courier</family>
-           </font>
-          </property>
-          <property name="text">
-           <string>0/0</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QSlider" name="recSlider">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="curTimeLabel">
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>200</width>
-            <height>200</height>
-           </size>
-          </property>
-          <property name="font">
-           <font>
-            <family>Courier</family>
-           </font>
-          </property>
-          <property name="text">
-           <string>00:00:00/00:00:00</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="recordBtn">
-          <property name="maximumSize">
-           <size>
-            <width>62</width>
-            <height>60</height>
-           </size>
-          </property>
-          <property name="styleSheet">
-           <string>background-color: rgb(70, 70, 70);</string>
-          </property>
-          <property name="text">
-           <string>Record</string>
-          </property>
-          <property name="icon">
-           <iconset>
-            <normaloff>images/rec2.png</normaloff>images/rec2.png</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="playBtn">
-          <property name="maximumSize">
-           <size>
-            <width>50</width>
-            <height>60</height>
-           </size>
-          </property>
-          <property name="styleSheet">
-           <string>background-color: rgb(70, 70, 70);</string>
-          </property>
-          <property name="text">
-           <string>Play</string>
-          </property>
-          <property name="icon">
-           <iconset>
-            <normaloff>images/play.png</normaloff>images/play.png</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="clearBtn">
-          <property name="maximumSize">
-           <size>
-            <width>50</width>
-            <height>60</height>
-           </size>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">background-color: rgb(70, 70, 70);</string>
-          </property>
-          <property name="text">
-           <string>Clear</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <widget class="Line" name="line_2">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <item>
-         <widget class="QLabel" name="label_2">
-          <property name="text">
-           <string>Press Space/, to advance frame, Backspace/. to go back a frame</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCheckBox" name="loopBox">
-          <property name="maximumSize">
-           <size>
-            <width>45</width>
-            <height>16777215</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>Loop</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCheckBox" name="timingBox">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>90</width>
-            <height>16777215</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>Record Timing</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCheckBox" name="audioBox">
-          <property name="maximumSize">
-           <size>
-            <width>82</width>
-            <height>16777215</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>Record Audio</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
+  <widget class="QWidget" name="mainLayout_2">
+   <layout class="QVBoxLayout" name="verticalLayout" stretch="1,0">
+    <property name="margin">
+     <number>4</number>
+    </property>
+    <item>
+     <layout class="QHBoxLayout" name="layoutImageView" stretch=""/>
+    </item>
+    <item>
+     <layout class="QVBoxLayout" name="layoutControls">
+      <property name="topMargin">
+       <number>5</number>
+      </property>
+      <property name="bottomMargin">
+       <number>5</number>
+      </property>
      </layout>
     </item>
    </layout>
@@ -253,7 +41,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>614</width>
+     <width>520</width>
      <height>25</height>
     </rect>
    </property>
@@ -292,7 +80,6 @@
    <addaction name="menuFile"/>
    <addaction name="menuOptions"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
   <action name="actionImport_Image_Sequence">
    <property name="text">
     <string>Import Image Sequence...</string>
