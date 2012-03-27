@@ -42,6 +42,8 @@ class StoryTimeModel(QAbstractItemModel):
         self.isTimeDisplayFrames = False
         # current image collection
         self.imageCollection = ImageCollection()
+        # the pixmap cache for efficiency
+        self.pixmapCache = PixmapCache()
         LOG.debug('Model Initialized')
     
     def __repr__(self):
@@ -115,7 +117,7 @@ class StoryTimeModel(QAbstractItemModel):
         Multiple files: add files exactly
         """
         if len(paths) > 1:
-            self.imageCollection.append(paths)
+            self.imageCollection.images = sorted(paths)
         else:
             path = paths[0]
             ext = os.path.splitext(path)[1]
@@ -129,6 +131,11 @@ class StoryTimeModel(QAbstractItemModel):
                 self.imageCollection.load_dir(os.path.dirname(path))
         # emit signals
         self.imageDataChanged()
+    
+    def cacheAllImages(self):
+        # cache the images
+        LOG.debug('Caching images...')
+        self.pixmapCache.cache(self.images)
     
     @property
     def imageCount(self):
@@ -156,15 +163,15 @@ class StoryTimeModel(QAbstractItemModel):
     
     @property
     def curImage(self):
-        return QPixmap(self.curImagePath)
+        return self.pixmapCache.getPixmap(self.curImagePath)
     
     @property
     def prevImage(self):
-        return QPixmap(self.imageCollection.prev(seek=False))
+        return self.pixmapCache.getPixmap(self.imageCollection.prev(seek=False))
     
     @property
     def nextImage(self):
-        return QPixmap(self.imageCollection.prev(seek=False))
+        return self.pixmapCache.getPixmap(self.imageCollection.prev(seek=False))
     
     def loadPrevImage(self):
         self.imageCollection.prev()
@@ -230,5 +237,68 @@ class StoryTimeModel(QAbstractItemModel):
     def parent(self, index):
         """ There is only one viable index, and therefore no feasible parent """
         return QModelIndex()
+
+
+
+class PixmapCache(object):
+    def __init__(self):
+        self.clear()
+    
+    def __getitem__(self, name):
+        return self._data[self.normKey(name)]
+    
+    def __setitem__(self, name, value):
+        self._data[self.normKey(name)] = value
+    
+    def __delitem__(self, name):
+        del self._data[self.normKey(name)]
+    
+    def clear(self):
+        self._data = {}
+    
+    def items(self):
+        return self._data.items()
+    
+    def keys(self):
+        return self._data.keys()
+    
+    def values(self):
+        return self._data.values()
+    
+    def has_key(self, key):
+        return self._data.has_key(self.normKey(key))
+    
+    def getPixmap(self, path):
+        if not isinstance(path, (str, unicode)):
+            return
+        if os.path.isfile(path):
+            if self.has_key(path):
+                # pixmap already loaded
+                return self[path]
+            else:
+                # load the pixmap
+                pixmap = QPixmap(path)
+                self[path] = pixmap
+                return pixmap
+        return None
+    
+    def normKey(self, path):
+        return os.path.normpath(path).lower()
+    
+    def cache(self, paths, keepOld=False):
+        normpaths = [self.normKey(p) for p in paths]
+        removed = 0
+        # remove unneded paths
+        for k in self.keys():
+            if k not in normpaths:
+                del self[k]
+                removed += 1
+        # cache the rest
+        added = 0
+        for p in paths:
+            if not self.has_key(p):
+                self.getPixmap(p)
+                added += 1
+        LOG.debug('Updated pixmap cache. {0} removed, {1} added'.format(removed, added))
 
 

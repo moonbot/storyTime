@@ -36,5 +36,8 @@ if __name__ == '__main__':
     app.setStyle('Plastique')
     wnd = controllers.StoryTimeWindow()
     wnd.show()
+    # load any given files
+    if len(sys.argv) > 1:
+        wnd.loadPaths(sys.argv[1:])
     sys.exit(app.exec_())
 

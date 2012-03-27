@@ -27,8 +27,6 @@ class StoryTimeWindow(base, form):
         
         # setup model
         self._model = StoryTimeModel(self)
-        self._model.imageCollection.load_dir('M:/projects/devproject/storyTime')
-        LOG.debug('images: {0}'.format(len(self._model.images)))
         
         self.imageView = ImageView(self)
         self.imageView.setModel(self._model)
@@ -43,10 +41,13 @@ class StoryTimeWindow(base, form):
         self.layoutControls.addWidget(self.timeSlider)
     
     def keyPressEvent(self, event):
-        if event.key()==Qt.Key_Space or event.key() == Qt.Key_Period:
+        if event.key() in (Qt.Key_Space, Qt.Key_Period, Qt.Key_Right):
             self._model.loadNextImage()
-        if event.key()==Qt.Key_Backspace or event.key()==Qt.Key_Comma:
+        if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left):
             self._model.loadPrevImage()
+    
+    def loadPaths(self, paths):
+        self._model.loadPaths(paths)
 
 
 
@@ -63,9 +64,15 @@ class ImageSlider(imageSliderBase, imageSliderForm):
         self.setupUi(self)
         self._dataMapper = QDataWidgetMapper()
         
-        self.uiImageSliderMax.setVisible(False)
-        QObject.connect(self.uiImageSliderMax, SIGNAL('valueChanged(int)'), self.uiImageSliderSetMaximum)
         QObject.connect(self.uiImageSlider, SIGNAL('valueChanged(int)'), self._dataMapper.submit)
+    
+    def setSliderMaximum(self, value):
+        self.uiImageSlider.setMaximum(max(value - 1, 0))
+        LOG.debug(self.uiImageSlider.minimum())
+        LOG.debug(self.uiImageSlider.maximum())
+    def getSliderMaximum(self):
+        return self.uiImageSlider.maximum()
+    sliderMaximum = pyqtProperty('int', getSliderMaximum, setSliderMaximum)
     
     def uiImageSliderSetMaximum(self, value):
         self.uiImageSlider.setMaximum(value - 1)
@@ -75,9 +82,11 @@ class ImageSlider(imageSliderBase, imageSliderForm):
         self._dataMapper.setModel(model)
         self._dataMapper.addMapping(self.uiImagePath, Mappings.curImagePath, 'text')
         self._dataMapper.addMapping(self.uiImageSlider, Mappings.curImageIndex, 'sliderPosition')
-        self._dataMapper.addMapping(self.uiImageSliderMax, Mappings.imageCount)
+        self._dataMapper.addMapping(self, Mappings.imageCount, 'sliderMaximum')
         self._dataMapper.addMapping(self.uiImageSliderLabel, Mappings.curImageIndexLabel, 'text')
         self._dataMapper.setCurrentModelIndex(model.index())
+        
+        QObject.connect(self.uiCacheImagesBtn, SIGNAL('clicked()'), self._model.cacheAllImages)
 
 
 

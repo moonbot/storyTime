@@ -111,9 +111,9 @@
            </spacer>
           </item>
           <item>
-           <widget class="QSpinBox" name="uiImageSliderMax">
-            <property name="enabled">
-             <bool>false</bool>
+           <widget class="QPushButton" name="uiCacheImagesBtn">
+            <property name="text">
+             <string>Cache Images</string>
             </property>
            </widget>
           </item>

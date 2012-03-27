@@ -324,9 +324,13 @@ class ImageCollection(object):
         self._images.sort(cmp=cmp_, key=key, reverse=reverse)
     
     def current(self):
+        if len(self.images) == 0:
+            return
         return self[self.seek]
     
     def prev(self, seek=True):
+        if len(self.images) == 0:
+            return
         if seek:
             self.seek -= 1
             i = self.seek
@@ -335,6 +339,8 @@ class ImageCollection(object):
         return self[i]
     
     def next(self, seek=True):
+        if len(self.images) == 0:
+            return
         if seek:
             self.seek += 1
             i = self.seek
