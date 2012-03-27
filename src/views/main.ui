@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>832</height>
+    <width>614</width>
+    <height>490</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -28,70 +28,13 @@
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <layout class="QVBoxLayout" name="layoutImageSlider">
+        <property name="topMargin">
+         <number>3</number>
+        </property>
         <property name="bottomMargin">
          <number>3</number>
         </property>
-        <item>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_3">
-            <item>
-             <widget class="QLabel" name="timeLabel">
-              <property name="minimumSize">
-               <size>
-                <width>63</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>63</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="font">
-               <font>
-                <family>Courier</family>
-               </font>
-              </property>
-              <property name="text">
-               <string>9999/9999</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSlider" name="timeSlider">
-              <property name="value">
-               <number>0</number>
-              </property>
-              <property name="sliderPosition">
-               <number>0</number>
-              </property>
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="filenameText">
-              <property name="font">
-               <font>
-                <pointsize>12</pointsize>
-               </font>
-              </property>
-              <property name="text">
-               <string>Filename: *.png</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </item>
        </layout>
       </item>
       <item>
@@ -127,7 +70,7 @@
            </font>
           </property>
           <property name="text">
-           <string>9999/9999</string>
+           <string>0/0</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -310,7 +253,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>614</width>
      <height>25</height>
     </rect>
    </property>

@@ -5,20 +5,57 @@ Created by Bohdon Sayre on 2012-03-26.
 Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
-#from storyTime.audio import AudioHandler
-#from storyTime.fcpxml import FcpXml
-
-#import xml.dom.minidom
+from models import Mappings, StoryTimeModel
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+from PyQt4 import uic
 import logging
 
 LOG = logging.getLogger(__name__)
 
 
-class StoryTimeController(object):
-    def __init__(self, model, view):
-        LOG.debug('Controller Initialized')
-        self.model = model
-        self.view = view
+base, form = uic.loadUiType('views/main.ui')
+
+class StoryTimeWindow(base, form):
+    def __init__(self, parent=None):
+        super(StoryTimeWindow, self).__init__(parent)
+        self.setupUi(self)
+        
+        # setup model
+        self._model = StoryTimeModel(self)
+        self._model.imageCollection.load_dir('M:/projects/devproject/storyTime')
+        LOG.debug('images: {0}'.format(len(self._model.images)))
+        
+        self.imageSlider = ImageSlider(self)
+        self.imageSlider.setModel(self._model)
+        self.layoutImageSlider.addWidget(self.imageSlider)
+        
+
+imageSliderBase, imageSliderForm = uic.loadUiType('views/imageSlider.ui')
+
+class ImageSlider(imageSliderBase, imageSliderForm):
+    def __init__(self, parent=None):
+        super(ImageSlider, self).__init__(parent)
+        self.setupUi(self)
+        self._dataMapper = QDataWidgetMapper()
+        
+        QObject.connect(self.uiImageSlider, SIGNAL('sliderMoved(int)'), self.submit)
+    
+    def submit(self):
+        self._dataMapper.submit()
+    
+    def setModel(self, model):
+        self._model = model
+        self._dataMapper.setModel(model)
+        self._dataMapper.addMapping(self.uiImagePath, Mappings.curImagePath, 'text')
+        self._dataMapper.addMapping(self.uiImageSlider, Mappings.curImageIndex, 'sliderPosition')
+        #self._dataMapper.addMapping(self.uiImageSlider, Mappings.imageCount, 'maximum')
+        self._dataMapper.addMapping(self.uiImageSliderLabel, Mappings.curImageIndexLabel, 'text')
+        self._dataMapper.setCurrentModelIndex(model.index(0))
+
+
+
+
 
 
 class StoryTimeControl(object):

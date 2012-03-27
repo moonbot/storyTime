@@ -2,9 +2,10 @@ import os
 import re
 
 
-def enum(*sequential, **named):
-    enums = dict(zip(sequential, range(len(sequential))), **named)
-    return type('Enum', (), enums)
+def enum(*args):
+    enums = dict(zip(args, range(len(args))))
+    enums['names'] = args
+    return type('enum', (), enums)
 
 def listdir(path):
     """

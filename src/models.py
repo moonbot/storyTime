@@ -6,16 +6,23 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
 from data import *
+from utils import enum
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
 import logging
 import os
 
 LOG = logging.getLogger(__name__)
 
+# TODO: cluster mappings that affect each other or create event pool presets
+Mappings = enum(
+    'isRecording', 'isPlaying', 'fps', 'curTime', 'imageCount',
+    'curImageIndex', 'curImageIndexLabel', 'curImage', 'curImagePath', 'end',
+)
 
-class StoryTimeModel(object):
-    def __init__(self):
-        # File Settings
-        self.workingDir = os.getcwd()
+class StoryTimeModel(QAbstractItemModel):
+    def __init__(self, parent=None):
+        super(StoryTimeModel, self).__init__(parent)
         
         # Recording / Playback
         self._isRecording = False
@@ -85,10 +92,19 @@ class StoryTimeModel(object):
     # image collection methods
     
     @property
+    def imageCount(self):
+        return len(self.images)
+    
+    @property
     def images(self):
         return self.imageCollection.images
     
-    def curImage(self):
+    @property
+    def curImageIndex(self):
+        return self.imageCollection.seek
+    
+    @property
+    def curImagePath(self):
         return self.imageCollection.current()
     
     def prevImage(self):
@@ -97,5 +113,55 @@ class StoryTimeModel(object):
     def nextImage(self):
         return self.imageCollection.next()
     
+    
+    # qt model methods
+    
+    def rowCount(self, parent):
+        return 1
+    
+    def columnCount(self, parent):
+        return 1
+    
+    def data(self, index, role):
+        LOG.debug('mapping={0} role={1}'.format(Mappings.names[index.column()], role))
+        if not index.isValid():
+            return
+        
+        # we don't care about rows since our model
+        # is essentially singular. the column is our mapping
+        mapping = index.column()
+        
+        if mapping == Mappings.imageCount:
+            return self.imageCount
+        elif mapping == Mappings.curImagePath:
+            return self.curImagePath
+        elif mapping == Mappings.curImageIndex:
+            return self.curImageIndex
+        elif mapping == Mappings.curImageIndexLabel:
+            return '{0:0{pad}}/{1}'.format(self.curImageIndex, self.imageCount, pad=len(str(self.imageCount)))
+    
+    
+    def setData(self, index, value, role = Qt.EditRole):
+        LOG.debug('mapping={0} value={1}'.format(Mappings.names[index.column()], value.toPyObject()))
+        
+        mapping = index.column()
+        
+        if mapping == Mappings.curImageIndex:
+            self.imageCollection.seek = value.toPyObject()
+            self.dataChanged.emit(index, index)
+            return True
+        
+        self.dataChanged.emit(index, index)
+        return False
+    
+    def index_range(self, start, end):
+        return (self.index(start), self.index(end))
+    
+    def index(self, row, column=0, parent=None):
+        return self.createIndex(row, column)
+    
+    def parent(self, index):
+        """ There is only one viable index, and therefore no feasible parent """
+        return QModelIndex()
 
 
