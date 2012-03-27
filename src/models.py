@@ -6,7 +6,7 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
 from data import *
-from utils import enum
+from utils import enum, get_timecode
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import logging
@@ -16,8 +16,9 @@ LOG = logging.getLogger(__name__)
 
 # TODO: cluster mappings that affect each other or create event pool presets
 Mappings = enum(
-    'isRecording', 'isPlaying', 'fps', 'curTime', 'imageCount',
-    'curImageIndex', 'curImageIndexLabel', 'curImage', 'curImagePath', 'end',
+    'isRecording', 'isPlaying', 'fps', 'curTime', 'timeDisplay', 'isTimeDisplayFrames',
+    'imageCount', 'curImageIndex', 'curImageIndexLabel', 'curImagePath', 'curImage', 'prevImage', 'nextImage',
+    'end',
 )
 
 class StoryTimeModel(QAbstractItemModel):
@@ -35,8 +36,10 @@ class StoryTimeModel(QAbstractItemModel):
         self.recordings = []
         # currently loaded/active recording collection
         self.curRecording = None
-        # current time of the playback timeline
+        # current time of the playback timeline in frames
         self.curTime = 0
+        # current display mode of the time (time code vs frames)
+        self.isTimeDisplayFrames = False
         # current image collection
         self.imageCollection = ImageCollection()
         LOG.debug('Model Initialized')
@@ -59,15 +62,26 @@ class StoryTimeModel(QAbstractItemModel):
     @property
     def fpsOptions(self):
         opts = self._fpsOptions.copy()
-        opts.update( {self.customFps:self.fps_label(self.customFps)} )
+        opts.update( {self.customFps:self.fpsLabel(self.customFps)} )
         return opts
     
-    def fps_label(self, fps):
+    def fpsLabel(self, fps):
         if fps in self._fpsOptions.keys():
             return self._fpsOptions[key]
         else:
             return 'Custom ({0} fps)'.format(fps)
     
+    @property
+    def timeDisplay(self):
+        if self.isTimeDisplayFrames:
+            return '{0}'.format(self.curTime)
+        else:
+            return get_timecode(self.curTime, self.fps)
+    
+    def toggleTimeDisplay(self):
+        self.isTimeDisplayFrames = not self.isTimeDisplayFrames
+        self.mappingChanged(Mappings.isTimeDisplayFrames)
+        self.mappingChanged(Mappings.timeDisplay)
     
     # recordings manipulation
     
@@ -79,17 +93,42 @@ class StoryTimeModel(QAbstractItemModel):
     def curAudioRecording(self):
         return self.curRecording.audio
     
-    def load_recording(self, index):
+    def loadRecording(self, index):
         if index < 0 or index >= len(self.recordings):
             raise IndexError
         self.curRecording = self.recordings[index]
     
-    def new_recording(self):
+    def newRecording(self):
         self.curRecording = RecordingCollection()
         self.recordings.append(self.curRecording)
     
     
     # image collection methods
+    
+    def loadPaths(self, paths):
+        """
+        Process and load images corresponding to the given paths.
+        Possible options:
+        
+        Single file: xml - open, all else - import directory
+        Directory: import directory
+        Multiple files: add files exactly
+        """
+        if len(paths) > 1:
+            self.imageCollection.append(paths)
+        else:
+            path = paths[0]
+            ext = os.path.splitext(path)[1]
+            if ext == '.xml':
+                # TODO: load the xml
+                pass
+            elif os.path.isdir(path):
+                self.imageCollection.load_dir(path)
+            else:
+                # TODO: replace this with loading the image sequence
+                self.imageCollection.load_dir(os.path.dirname(path))
+        # emit signals
+        self.imageDataChanged()
     
     @property
     def imageCount(self):
@@ -108,14 +147,32 @@ class StoryTimeModel(QAbstractItemModel):
         return self.imageCollection.seek
     
     @property
+    def curImageIndexLabel(self):
+        return '{1:0{0.imagePadding}}/{0.imageCount}'.format(self, self.curImageIndex + 1)
+    
+    @property
     def curImagePath(self):
         return self.imageCollection.current()
     
-    def prevImage(self):
-        return self.imageCollection.prev()
+    @property
+    def curImage(self):
+        return QPixmap(self.curImagePath)
     
+    @property
+    def prevImage(self):
+        return QPixmap(self.imageCollection.prev(seek=False))
+    
+    @property
     def nextImage(self):
-        return self.imageCollection.next()
+        return QPixmap(self.imageCollection.prev(seek=False))
+    
+    def loadPrevImage(self):
+        self.imageCollection.prev()
+        self.imageDataChanged()
+    
+    def loadNextImage(self):
+        self.imageCollection.next()
+        self.imageDataChanged()
     
     
     # qt model methods
@@ -130,19 +187,12 @@ class StoryTimeModel(QAbstractItemModel):
         LOG.debug('mapping={0} role={1}'.format(Mappings.names[index.column()], role))
         if not index.isValid():
             return
-        
         # we don't care about rows since our model
         # is essentially singular. the column is our mapping
         m = index.column()
-        
-        if m == Mappings.imageCount:
-            return self.imageCount
-        elif m == Mappings.curImagePath:
-            return self.curImagePath
-        elif m == Mappings.curImageIndex:
-            return self.curImageIndex
-        elif m == Mappings.curImageIndexLabel:
-            return '{1:0{0.imagePadding}}/{0.imageCount}'.format(self, self.curImageIndex + 1)
+        # return the current data for the corresponding mapping
+        if hasattr(self, Mappings.names[m]):
+            return getattr(self, Mappings.names[m])
     
     
     def setData(self, index, value, role = Qt.EditRole):
@@ -152,10 +202,12 @@ class StoryTimeModel(QAbstractItemModel):
         
         if m == Mappings.curImageIndex:
             self.imageCollection.seek = value.toPyObject()
-            # TODO: organize this dependency stuff better
+            self.imageDataChanged()
+            return True
+        elif m == Mappings.curTime:
+            self.curTime = value.toPyObject()
             self.mappingChanged(m)
-            self.mappingChanged(Mappings.curImagePath)
-            self.mappingChanged(Mappings.curImageIndexLabel)
+            self.mappingChanged(Mappings.timeDisplay)
             return True
         
         return False
@@ -163,7 +215,16 @@ class StoryTimeModel(QAbstractItemModel):
     def mappingChanged(self, mapping):
         self.dataChanged.emit(self.index(0, mapping), self.index(0, mapping))
     
-    def index(self, row, column=0, parent=None):
+    def imageDataChanged(self):
+        self.mappingChanged(Mappings.imageCount)
+        self.mappingChanged(Mappings.curImageIndex)
+        self.mappingChanged(Mappings.curImageIndexLabel)
+        self.mappingChanged(Mappings.curImagePath)
+        self.mappingChanged(Mappings.curImage)
+        self.mappingChanged(Mappings.prevImage)
+        self.mappingChanged(Mappings.nextImage)
+    
+    def index(self, row=0, column=0, parent=None):
         return self.createIndex(row, column)
     
     def parent(self, index):

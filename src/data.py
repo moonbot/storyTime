@@ -301,11 +301,15 @@ class ImageCollection(object):
     def extend(self, images):
         self.append(images)
     
-    def load_dir(self, dir_):
+    def load_dir(self, dir_, additive=False):
         if not os.path.isdir(dir_):
             raise OSError('directory does not exist: {0}'.format(dir_))
         files = os.listdir(dir_)
-        self.images = [i for i in files if self.is_valid_image(i)]
+        imgs = [os.path.join(dir_, i) for i in files if self.is_valid_image(i)]
+        if additive:
+            self.images.extend(imgs)
+        else:
+            self.images = imgs
         self.sort()
     
     def load_sequence(self, image):

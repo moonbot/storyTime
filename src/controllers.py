@@ -17,6 +17,10 @@ LOG = logging.getLogger(__name__)
 base, form = uic.loadUiType('views/main.ui')
 
 class StoryTimeWindow(base, form):
+    """
+    The Main Story Time Window. Loads and attaches each of the main control
+    widgets (ImageView, ImageSlider, TimeSlider) and connects them to a model.
+    """
     def __init__(self, parent=None):
         super(StoryTimeWindow, self).__init__(parent)
         self.setupUi(self)
@@ -37,7 +41,14 @@ class StoryTimeWindow(base, form):
         self.timeSlider = TimeSlider(self)
         self.timeSlider.setModel(self._model)
         self.layoutControls.addWidget(self.timeSlider)
-        
+    
+    def keyPressEvent(self, event):
+        if event.key()==Qt.Key_Space or event.key() == Qt.Key_Period:
+            self._model.loadNextImage()
+        if event.key()==Qt.Key_Backspace or event.key()==Qt.Key_Comma:
+            self._model.loadPrevImage()
+
+
 
 imageSliderBase, imageSliderForm = uic.loadUiType('views/imageSlider.ui')
 
@@ -54,13 +65,10 @@ class ImageSlider(imageSliderBase, imageSliderForm):
         
         self.uiImageSliderMax.setVisible(False)
         QObject.connect(self.uiImageSliderMax, SIGNAL('valueChanged(int)'), self.uiImageSliderSetMaximum)
-        QObject.connect(self.uiImageSlider, SIGNAL('valueChanged(int)'), self.submit)
+        QObject.connect(self.uiImageSlider, SIGNAL('valueChanged(int)'), self._dataMapper.submit)
     
     def uiImageSliderSetMaximum(self, value):
         self.uiImageSlider.setMaximum(value - 1)
-    
-    def submit(self):
-        self._dataMapper.submit()
     
     def setModel(self, model):
         self._model = model
@@ -69,7 +77,9 @@ class ImageSlider(imageSliderBase, imageSliderForm):
         self._dataMapper.addMapping(self.uiImageSlider, Mappings.curImageIndex, 'sliderPosition')
         self._dataMapper.addMapping(self.uiImageSliderMax, Mappings.imageCount)
         self._dataMapper.addMapping(self.uiImageSliderLabel, Mappings.curImageIndexLabel, 'text')
-        self._dataMapper.setCurrentModelIndex(model.index(0))
+        self._dataMapper.setCurrentModelIndex(model.index())
+
+
 
 
 timeSliderBase, timeSliderForm = uic.loadUiType('views/timeSlider.ui')
@@ -83,10 +93,61 @@ class TimeSlider(timeSliderBase, timeSliderForm):
         super(TimeSlider, self).__init__(parent)
         self.setupUi(self)
         self._dataMapper = QDataWidgetMapper()
+        
+        # hide hidden controls
+        self.uiIsRecordingCheck.setVisible(False)
+        self.uiIsPlayingCheck.setVisible(False)
+        
+        self.uiTimeSliderMax.setVisible(False)
+        # time slider connections
+        QObject.connect(self.uiTimeSliderMax, SIGNAL('valueChanged(int)'), self.uiTimeSlider.setMaximum)
+        QObject.connect(self.uiTimeSlider, SIGNAL('valueChanged(int)'), self._dataMapper.submit)
+        # mapped checkbox updates recording display
+        QObject.connect(self.uiIsRecordingCheck, SIGNAL('toggled(bool)'), self.updateIsRecording)
+        # playback/recording buttons
+        QObject.connect(self.uiRecordBtn, SIGNAL('clicked()'), self.recordBtnClicked)
+    
+    def updateIsRecording(self, isRecording):
+        # bg color
+        style = 'background-color: rgb{0};'.format( (60, 25, 25) if isRecording else (40, 40, 40) )
+        self.uiMainFrame.setStyleSheet(style)
+        # record button state
+        img = 'images/{0}.png'.format('stopBtn' if isRecording else 'recordBtn')
+        self.uiRecordBtn.setIcon(QIcon(img))
+        # enable/disable buttons
+        self.uiTimeSlider.setEnabled(not isRecording)
+        setVisuallyEnabled(self.uiPlayBtn, not isRecording)
+        setVisuallyEnabled(self.uiNewBtn, not isRecording)
+        setVisuallyEnabled(self.uiRecordingName, not isRecording)
+        setVisuallyEnabled(self.uiImageCountDisplay, not isRecording)
+        setVisuallyEnabled(self.uiDurationDisplay, not isRecording)
+        setVisuallyEnabled(self.uiAudioCheck, not isRecording)
+    
+    def playBtnClicked(self):
+        pass
+    
+    def recordBtnClicked(self):
+        if self.uiIsRecordingCheck.checkState() == Qt.Checked:
+            LOG.debug('Stopping recording')
+            self.uiIsRecordingCheck.setCheckState(Qt.Unchecked)
+        elif self.uiIsPlayingCheck.checkState() == Qt.Checked:
+            LOG.debug('Stopping playback')
+            self.uiIsPlayingCheck.setCheckState(Qt.Unchecked)
+        else:
+            LOG.debug('Recording...')
+            self.uiIsRecordingCheck.setCheckState(Qt.Checked)
     
     def setModel(self, model):
         self._model = model
         self._dataMapper.setModel(model)
+        self._dataMapper.addMapping(self.uiIsRecordingCheck, Mappings.isRecording, 'checked')
+        self._dataMapper.addMapping(self.uiTimeSlider, Mappings.curTime, 'sliderPosition')
+        self._dataMapper.addMapping(self.uiTimeDisplay, Mappings.timeDisplay, 'text')
+        self._dataMapper.setCurrentModelIndex(model.index())
+        
+        # connect some things to the model
+        QObject.connect(self.uiTimeDisplay, SIGNAL('clicked()'), self._model.toggleTimeDisplay)
+
 
 
 
@@ -105,37 +166,75 @@ class ImageView(imageViewBase, imageViewForm):
         self.uiGraphicsViewPrev.setVisible(False)
         self.uiGraphicsViewNext.setVisible(False)
     
+    
+    def getPixmap(self):
+        return self.uiGraphicsPixmapItem.pixmap()
+    def setPixmap(self, data):
+        self.uiGraphicsPixmapItem.setPixmap(data)
+    pixmap = pyqtProperty("QPixmap", getPixmap, setPixmap)
+    
+    """def getPrevPixmap(self):
+        return self.uiGraphicsPixmapItemPrev.pixmap()
+    def setPrevPixmap(self, data):
+        self.uiGraphicsPixmapItemPrev.setPixmap(data)
+    prevPixmap = pyqtProperty("QPixmap", getPrevPixmap, setPrevPixmap)
+    
+    def getNextPixmap(self):
+        return self.uiGraphicsPixmapItemNext.pixmap()
+    def setNextPixmap(self, data):
+        self.uiGraphicsPixmapItemNext.setPixmap(data)
+    nextPixmap = pyqtProperty("QPixmap", getNextPixmap, setNextPixmap)"""
+    
     def setModel(self, model):
         self._model = model
         self._dataMapper.setModel(model)
+        # add graphics item for each view
+        self.uiGraphicsPixmapItem = self.addPixmapItem(self.uiGraphicsView, model.curImage)
+        self._dataMapper.addMapping(self, Mappings.curImage, 'pixmap')
+        self._dataMapper.setCurrentModelIndex(model.index())
+    
+    def addPixmapItem(self, graphicsView, pixmap):
+        item = QGraphicsPixmapItem(pixmap)
+        scene = QGraphicsScene()
+        scene.addItem(item)
+        graphicsView.setScene(scene)
+        return item
+    
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.accept()
+        else:
+            event.ignore()
+            
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.setDropAction(Qt.CopyAction)
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.setDropAction(Qt.CopyAction)
+            event.accept()
+            paths = []
+            for url in event.mimeData().urls():
+                paths.append(str(url.toLocalFile()))
+            # tell the model to load the given paths
+            self._model.loadPaths(paths)
 
 
 
+def setVisuallyEnabled(control, enabled):
+    style = '' if enabled else 'color: rgb(120, 120, 120);'
+    control.setEnabled(enabled)
+    control.setStyleSheet(style)
 
 
 class StoryTimeControl(object):
     
     #audioHandler = AudioHandler()
     UPDATE_INTERVAL = 500
-    
-    def __init__(self, model, view):
-        self.model = model
-        self.view = view
-    
-    def observe_model(self):
-        """Add necessary observer functions to observable objects"""
-        self.audioPath.add_observer(self.ctl_ob_audio_path)
-        self.countdown.add_observer(self.ctl_ob_countdown)
-        self.curFrame.add_observer(self.ctl_ob_cur_frame)
-        self.curFrame.add_observer(self.ob_cur_frame)
-        self.curImgFrame.add_observer(self.ctl_ob_cur_frame)
-        self.curImgFrame.add_observer(self.ob_cur_frame)
-        self.fpsOptions.add_observer(self.ob_fps_options)
-        self.images.add_observer(self.ob_images)
-        self.playing.add_observer(self.ob_playing)
-        
-        self.recording.add_observer(self.ob_recording)
-        self.timecode.add_observer(self.ob_timecode)
         
     # File Handling Functions
     # -----------------------
