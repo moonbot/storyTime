@@ -5,7 +5,7 @@ Created by Bohdon Sayre on 2012-03-26.
 Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
-from storyTime.data import *
+from data import *
 import logging
 import os
 
