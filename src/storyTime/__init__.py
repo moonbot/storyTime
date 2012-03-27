@@ -12,7 +12,10 @@ __all__ = [
     'log_path',
 ]
 
-from storyTime import model, view, controller
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+from PyQt4 import uic
+from storyTime import model, controller
 import logging
 import logging.handlers
 import os
@@ -32,18 +35,19 @@ def run():
     LOG.debug('%s %s', 'StoryTime', __version__)
     
     LOG.debug('Initializing StoryTime...')
-    view.init_app()
+    
+    app = QApplication(sys.argv)
+    app.setStyle('Plastique')
     m = model.StoryTimeModel()
-    v = view.StoryTimeView()
-    c = controller.StoryTimeController(m, m)
+    v = uic.loadUi('views/main.ui')
+    c = controller.StoryTimeController(m, v)
     LOG.debug('Running application...')
     v.show()
-    return view.app().exec_()
+    return app.exec_()
 
 def log_path():
     dir_ = os.path.dirname(__path__[0])
     if not os.path.isdir(dir_):
         dir_ = os.path.dirname(dir_)
     return os.path.join(dir_, 'storyTime.log')
-
 
