@@ -24,7 +24,7 @@ FPS_OPTIONS = {
 }
 
 DEFAULT_IMAGE_TYPES = [
-    'jpg', 'jpeg', 'png', 'tif', 'tiff', 'tga',
+    'jpg', 'jpeg', 'png', 'tif', 'tiff', 'tga', 'ico', 'gif',
 ]
 
 class FrameRecording(object):
@@ -257,7 +257,7 @@ class ImageCollection(object):
         self._images = []
         if isinstance(value, (tuple, list)):
             for i in value:
-                if isinstance(i, (str, unicode)):
+                if isinstance(i, (str, unicode)) and self.is_valid_image(i):
                     self._images.append(os.path.normpath(i))
         elif isinstance(value, (str, unicode)):
             self._images.append(os.path.normpath(value))

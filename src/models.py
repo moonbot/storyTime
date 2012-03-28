@@ -18,8 +18,9 @@ LOG = logging.getLogger(__name__)
 
 # TODO: cluster mappings that affect each other or create event pool presets
 Mappings = enum(
-    'isRecording', 'isPlaying', 'fps', 'curTime', 'duration', 'timeDisplay', 'isTimeDisplayFrames',
+    'isRecording', 'isPlaying', 'fps', 'curTime', 'timeDisplay', 'isTimeDisplayFrames',
     'imageCount', 'curImageIndex', 'curImageIndexLabel', 'curImagePath', 'curImage', 'prevImage', 'nextImage',
+    'recordingIndex', 'recordingName', 'recordingFps', 'recordingDuration', 'recordingDurationDisplay', 'recordingImageCount',
     'end',
 )
 
@@ -32,26 +33,26 @@ class StoryTimeModel(QAbstractItemModel):
         self._isPlaying = False
         self._fpsOptions = FPS_OPTIONS
         self.customFps = 12
-        self.fps = 24
-        self.loop = True
-        # all recording collections
-        self.recordings = []
-        # currently loaded/active recording collection
-        self.curRecording = None
-        # current time of the playback timeline in frames
-        self.curTime = 0
-        # the duration of the current recording in frames
-        self.duration = 240
         # current display mode of the time (time code vs frames)
         self.isTimeDisplayFrames = False
+        # current time of the playback timeline in frames
+        self.curTime = 0
+        
+        
+        # all recording collections
+        self.recordings = []
+        # currently loaded/active recording collection index
+        self.recordingIndex = 0
         # current image collection
         self.imageCollection = ImageCollection()
         # the pixmap cache for efficiency
         self.pixmapCache = PixmapCache()
+        
+        self.newRecording()
         LOG.debug('Model Initialized')
     
     def __repr__(self):
-        return '<StoryTimeModel | {0} recording(s)>'.format(len(self.recordings))
+        return '<StoryTimeModel | {0.recordingCount} recording(s)>'.format(self)
     
     @property
     def isRecording(self):
@@ -82,14 +83,24 @@ class StoryTimeModel(QAbstractItemModel):
         if self.isTimeDisplayFrames:
             return '{0}'.format(self.curTime)
         else:
-            return get_timecode(self.curTime, self.fps)
+            return get_timecode(self.curTime, self.recordingFps)
     
     def toggleTimeDisplay(self):
         self.isTimeDisplayFrames = not self.isTimeDisplayFrames
         self.mappingChanged(Mappings.isTimeDisplayFrames)
         self.mappingChanged(Mappings.timeDisplay)
     
-    # recordings manipulation
+    
+    
+    # Recording Properties
+    
+    @property
+    def recordingCount(self):
+        return len(self.recordings)
+    
+    @property
+    def curRecording(self):
+        return self.recordings[self.recordingIndex]
     
     @property
     def curFrameRecording(self):
@@ -99,14 +110,46 @@ class StoryTimeModel(QAbstractItemModel):
     def curAudioRecording(self):
         return self.curRecording.audio
     
+    @property
+    def recordingFps(self):
+        return self.curFrameRecording.fps
+    
+    @property
+    def recordingName(self):
+        return self.curRecording.name
+    
+    @property
+    def recordingDuration(self):
+        #TODO: return the max duration (whether its the frame or audio recording)
+        return self.curFrameRecording.duration
+    
+    @property
+    def recordingDurationDisplay(self):
+        return get_timecode(self.recordingDuration, self.recordingFps)
+    
+    @property
+    def recordingImageCount(self):
+        return len(self.curFrameRecording)
+    
     def loadRecording(self, index):
-        if index < 0 or index >= len(self.recordings):
+        if index < 0 or index >= self.recordingCount:
             raise IndexError
-        self.curRecording = self.recordings[index]
+        self.recordingIndex = index
+        self.curTime = 0
+        self.recordingDataChanged()
+        self.imageDataChanged()
+        self.mappingChanged(Mappings.curTime)
+        self.mappingChanged(Mappings.timeDisplay)
     
     def newRecording(self):
-        self.curRecording = RecordingCollection()
-        self.recordings.append(self.curRecording)
+        new = RecordingCollection()
+        new.name = 'Recording {0}'.format(self.recordingCount + 1)
+        self.recordings.append(new)
+        self.loadRecording(self.recordingCount - 1)
+    
+    def deleteRecording(self, index):
+        # TODO: make sure we always have atleast one recording
+        pass
     
     
     # image collection methods
@@ -221,6 +264,16 @@ class StoryTimeModel(QAbstractItemModel):
             self.mappingChanged(Mappings.timeDisplay)
             return True
         
+        elif m == Mappings.recordingIndex:
+            self.recordingIndex = max(min(value, self.recordingCount - 1), 0)
+            self.recordingDataChanged()
+            return True
+        elif m == Mappings.recordingName:
+            self.curRecording.name = value
+            self.mappingChanged(Mappings.recordingName)
+            return True
+            
+        
         return False
     
     def mappingChanged(self, mapping):
@@ -234,6 +287,14 @@ class StoryTimeModel(QAbstractItemModel):
         self.mappingChanged(Mappings.curImage)
         self.mappingChanged(Mappings.prevImage)
         self.mappingChanged(Mappings.nextImage)
+    
+    def recordingDataChanged(self):
+        self.mappingChanged(Mappings.recordingIndex)
+        self.mappingChanged(Mappings.recordingName)
+        self.mappingChanged(Mappings.recordingFps)
+        self.mappingChanged(Mappings.recordingDuration)
+        self.mappingChanged(Mappings.recordingDurationDisplay)
+        self.mappingChanged(Mappings.recordingImageCount)
     
     def index(self, row=0, column=0, parent=None):
         return self.createIndex(row, column)

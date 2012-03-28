@@ -6,7 +6,6 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
 from models import Mappings, StoryTimeModel
-
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
@@ -15,6 +14,7 @@ from PySide.QtUiTools import QUiLoader
 #from PyQt4 import uic
 #Property = pyqtProperty
 import logging
+import os
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +34,6 @@ def attachUi(widget, parent):
         layout.setContentsMargins(0, 0, 0, 0)
         parent.setLayout(layout)
     parent.layout().addWidget(widget)
-
 
 
 class EventEater(QObject):
@@ -94,12 +93,24 @@ class StoryTimeWindow(object):
     """
     The Main Story Time Window. Loads and attaches each of the main control
     widgets (ImageView, ImageSlider, TimeSlider) and connects them to a model.
-    """    
-    def __init__(self):
+    """
+    
+    _instance = None
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(StoryTimeWindow, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+    
+    @staticmethod
+    def instance():
+        return StoryTimeWindow._instance
+    
+    def __init__(self):        
         #super(StoryTimeWindow, self).__init__(parent)
         #self.setupUi(self)
         self.ui = loadUi('views/main.ui')
         self.ui.setAcceptDrops(True)
+        self.ui.setWindowTitle('Story Time')
         self.ui.show()
         
         # setup model
@@ -125,6 +136,15 @@ class StoryTimeWindow(object):
         self.imageView.installEventFilter(self.eventEater)
         self.imageSlider.installEventFilter(self.eventEater)
         self.timeSlider.installEventFilter(self.eventEater)
+        
+        # hookup menu actions
+        self.ui.actionNewRecording.triggered.connect(self.newRecording)
+        self.ui.actionOpenRecording.triggered.connect(self.openRecording)
+        self.ui.actionSaveRecording.triggered.connect(self.saveRecording)
+        self.ui.actionSaveRecordingAs.triggered.connect(self.saveRecordingAs)
+        self.ui.actionImportImages.triggered.connect(self.importImages)
+        self.ui.actionExportForFCP.triggered.connect(self.exportForFCP)
+        self.ui.actionExportForPremiere.triggered.connect(self.exportForPremiere)
     
     def loadPaths(self, paths):
         self._model.loadPaths(paths)
@@ -136,6 +156,47 @@ class StoryTimeWindow(object):
         if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left, Qt.Key_Up):
             self._model.loadPrevImage()
             return True
+    
+    def newRecording(self):
+        self._model.newRecording()
+        LOG.debug('New recording')
+    
+    def openRecording(self):
+        caption = 'Open Story Time Recording...'
+        f = QFileDialog.getOpenFileName(
+            self.ui,
+            caption=caption,
+            filter='XML files (*.xml)',
+        )
+        LOG.debug('Opening story time file: {0}'.format(f))
+    
+    def saveRecording(self):
+        LOG.debug('Saving current recording where it was last saved.')
+    
+    def saveRecordingAs(self):
+        caption = 'Save Story Time Recording...'
+        files = QFileDialog.getSaveFileName(
+            self.ui,
+            caption=caption,
+            filter='XML files (*.xml)',
+        )
+        LOG.debug('Saving story time file: {0}'.format(files[0]))
+    
+    def importImages(self):
+        caption = 'Import Image(s)'
+        files = QFileDialog.getOpenFileNames(
+            self.ui,
+            caption=caption,
+        )
+        if len(files) > 0 and len(files[0]) > 0:
+            self.loadPaths(files[0])
+            LOG.debug('Imported {0}'.format(files[0]))
+    
+    def exportForFCP(self):
+        LOG.debug('Exporting for FCP')
+    
+    def exportForPremiere(self):
+        LOG.debug('Exporting for Premiere')
 
 
 
@@ -210,7 +271,7 @@ class ImageSlider(QWidget):
         self.ui = loadUi('views/imageSlider.ui', self, True)
         self._dataMapper = QDataWidgetMapper()
         
-        QObject.connect(self.ui.ImageSlider, SIGNAL('valueChanged(int)'), self._dataMapper.submit)
+        self.ui.ImageSlider.valueChanged.connect(self._dataMapper.submit)
     
     def setSliderMaximum(self, value):
         self.ui.ImageSlider.setMaximum(max(value - 1, 0))
@@ -220,6 +281,7 @@ class ImageSlider(QWidget):
     
     def setModel(self, model):
         self._model = model
+        self.ui.CacheImagesBtn.clicked.connect(self._model.cacheAllImages)
         self._dataMapper.setModel(model)
         self._dataMapper.addMapping(self.ui.ImagePath, Mappings.curImagePath, 'text')
         self._dataMapper.addMapping(self.ui.ImageSlider, Mappings.curImageIndex, 'sliderPosition')
@@ -227,7 +289,6 @@ class ImageSlider(QWidget):
         self._dataMapper.addMapping(self.ui.ImageSliderLabel, Mappings.curImageIndexLabel, 'text')
         self._dataMapper.toFirst()
         
-        QObject.connect(self.ui.CacheImagesBtn, SIGNAL('clicked()'), self._model.cacheAllImages)
     
     def installEventFilter(self, filter):
         # install the event filter on all appropriate objects
@@ -252,9 +313,12 @@ class TimeSlider(QWidget):
         self.ui.IsRecordingCheck.setVisible(False)
         self.ui.IsPlayingCheck.setVisible(False)
         
-        QObject.connect(self.ui.TimeSlider, SIGNAL('valueChanged(int)'), self._dataMapper.submit)
-        QObject.connect(self.ui.IsRecordingCheck, SIGNAL('toggled(bool)'), self.updateIsRecording)
-        QObject.connect(self.ui.RecordBtn, SIGNAL('clicked()'), self.recordBtnClicked)
+        self.ui.TimeSlider.valueChanged.connect(self._dataMapper.submit)
+        self.ui.RecordingIndex.valueChanged.connect(self._dataMapper.submit)
+        self.ui.IsRecordingCheck.toggled.connect(self.updateIsRecording)
+        self.ui.RecordBtn.clicked.connect(self.recordBtnClicked)
+        self.ui.NewBtn.clicked.connect(StoryTimeWindow.instance().newRecording)
+        
     
     def setSliderMaximum(self, value):
         self.ui.TimeSlider.setMaximum(value)
@@ -274,8 +338,9 @@ class TimeSlider(QWidget):
         setVisuallyEnabled(self.ui.PlayBtn, not isRecording)
         setVisuallyEnabled(self.ui.NewBtn, not isRecording)
         setVisuallyEnabled(self.ui.RecordingName, not isRecording)
-        setVisuallyEnabled(self.ui.ImageCountDisplay, not isRecording)
-        setVisuallyEnabled(self.ui.DurationDisplay, not isRecording)
+        setVisuallyEnabled(self.ui.RecordingImageCount, not isRecording)
+        setVisuallyEnabled(self.ui.RecordingImageCountLabel, not isRecording)
+        setVisuallyEnabled(self.ui.RecordingDurationDisplay, not isRecording)
         setVisuallyEnabled(self.ui.AudioCheck, not isRecording)
     
     def playBtnClicked(self):
@@ -294,15 +359,18 @@ class TimeSlider(QWidget):
     
     def setModel(self, model):
         self._model = model
+        self.ui.TimeDisplay.clicked.connect(self._model.toggleTimeDisplay)
         self._dataMapper.setModel(model)
+        self._dataMapper.addMapping(self.ui.RecordingIndex, Mappings.recordingIndex, 'value')
+        self._dataMapper.addMapping(self.ui.RecordingName, Mappings.recordingName, 'text')
+        self._dataMapper.addMapping(self.ui.RecordingImageCount, Mappings.recordingImageCount, 'text')
+        self._dataMapper.addMapping(self.ui.RecordingDurationDisplay, Mappings.recordingDurationDisplay, 'text')
+        self._dataMapper.addMapping(self, Mappings.recordingDuration, 'sliderMaximum')
         self._dataMapper.addMapping(self.ui.IsRecordingCheck, Mappings.isRecording, 'checked')
         self._dataMapper.addMapping(self.ui.TimeSlider, Mappings.curTime, 'sliderPosition')
         self._dataMapper.addMapping(self.ui.TimeDisplay, Mappings.timeDisplay, 'text')
-        self._dataMapper.addMapping(self, Mappings.duration, 'sliderMaximum')
         self._dataMapper.toFirst()
         
-        # connect some things to the model
-        QObject.connect(self.ui.TimeDisplay, SIGNAL('clicked()'), self._model.toggleTimeDisplay)
     
     def installEventFilter(self, filter):
             # install the event filter on all appropriate objects
@@ -329,40 +397,6 @@ class StoryTimeControl(object):
         
     # File Handling Functions
     # -----------------------
-    
-    def ctl_process_dropped_paths(self, paths):
-        """
-        Decides what to do with paths dropped onto the file.  Possible options:
-        
-        Single file:
-        .xml: open
-        anything else: import sequence
-        
-        Directory:
-        import directory
-        
-        Multiple files:
-        import files as sequence
-        """
-        
-        if len(paths) > 1:
-            paths = self.filter_image_paths(paths)
-            self.ctl_process_import(paths)
-        else:
-            ext = os.path.splitext(paths[0])[1]
-            if ext == '.xml':
-                with open(paths[0], 'r') as openFile:
-                    self.from_xml(openFile.read())
-                self.savePath.set(paths[0])
-                self.audioHandler = AudioHandler(self.images.get()[0])
-            elif os.path.isdir(paths[0]):
-                self.ctl_process_import(utils.listdir(paths[0]))
-            else:
-                for imageformat in self.view_get_image_formats():
-                    if imageformat == ext:
-                        # TODO: implement internal version of sequences
-                        LOG.warning('Import Image Sequence not yet implemented...')
-                        self.ctl_process_import(paths)
     
     def ctl_open(self):
         """Browse for and open a StoryTime XML file"""
