@@ -10,6 +10,7 @@ from utils import enum, get_timecode
 from PySide.QtCore import *
 from PySide.QtGui import *
 import logging
+import math
 import os
 
 LOG = logging.getLogger(__name__)
@@ -22,13 +23,77 @@ Mappings = enum(
     'end',
 )
 
+
+class PixmapCache(object):
+    def __init__(self):
+        self.clear()
+    
+    def __getitem__(self, name):
+        return self._data[self.normKey(name)]
+    
+    def __setitem__(self, name, value):
+        self._data[self.normKey(name)] = value
+    
+    def __delitem__(self, name):
+        del self._data[self.normKey(name)]
+    
+    def clear(self):
+        self._data = {}
+    
+    def items(self):
+        return self._data.items()
+    
+    def keys(self):
+        return self._data.keys()
+    
+    def values(self):
+        return self._data.values()
+    
+    def has_key(self, key):
+        return self._data.has_key(self.normKey(key))
+    
+    def getPixmap(self, path):
+        if not isinstance(path, (str, unicode)):
+            return
+        if os.path.isfile(path):
+            if self.has_key(path):
+                # pixmap already loaded
+                return self[path]
+            else:
+                # load the pixmap
+                pixmap = QPixmap(path)
+                self[path] = pixmap
+                return pixmap
+        return None
+    
+    def normKey(self, path):
+        return os.path.normpath(path).lower()
+    
+    def cache(self, paths, keepOld=False):
+        normpaths = [self.normKey(p) for p in paths]
+        removed = 0
+        # remove unneded paths
+        for k in self.keys():
+            if k not in normpaths:
+                del self[k]
+                removed += 1
+        # cache the rest
+        added = 0
+        for p in paths:
+            if not self.has_key(p):
+                self.getPixmap(p)
+                added += 1
+        LOG.debug('Updated pixmap cache. {0} removed, {1} added'.format(removed, added))
+
+
+
 class StoryTimeModel(QAbstractItemModel):
     def __init__(self, parent=None):
         super(StoryTimeModel, self).__init__(parent)
         
         # Recording / Playback
-        self._isRecording = False
-        self._isPlaying = False
+        self.isRecording = False
+        self.isPlaying = False
         self._fpsOptions = FPS_OPTIONS
         self.customFps = 12
         # current display mode of the time (time code vs frames)
@@ -51,14 +116,6 @@ class StoryTimeModel(QAbstractItemModel):
     
     def __repr__(self):
         return '<StoryTimeModel | {0.recordingCount} recording(s)>'.format(self)
-    
-    @property
-    def isRecording(self):
-        return self._isRecording
-    
-    @property
-    def isPlaying(self):
-        return self._isPlaying
     
     @property
     def fpsList(self):
@@ -87,6 +144,11 @@ class StoryTimeModel(QAbstractItemModel):
         self.isTimeDisplayFrames = not self.isTimeDisplayFrames
         self.mappingChanged(Mappings.isTimeDisplayFrames)
         self.mappingChanged(Mappings.timeDisplay)
+    
+    def secondsToFrames(self, seconds, fps=None):
+        if fps is None:
+            fps = self.recordingFps
+        return int(seconds * fps)
     
     
     
@@ -118,8 +180,17 @@ class StoryTimeModel(QAbstractItemModel):
     
     @property
     def recordingDuration(self):
-        #TODO: return the max duration (whether its the frame or audio recording)
-        return self.curFrameRecording.duration
+        if self.isRecording:
+            # return the current time ceilinged to the nearest half minute
+            minuteFrames = self.recordingFps * 30
+            minutes = math.floor(float(self.curTime) / minuteFrames) + 2
+            return minutes * minuteFrames
+        else:
+            ad = self.secondsToFrames(self.curAudioRecording.duration)
+            fd = self.curFrameRecording.duration
+            #vduration = self.curVideoRecording.duration
+            return max(ad, fd)
+        
     
     @property
     def recordingDurationDisplay(self):
@@ -148,6 +219,28 @@ class StoryTimeModel(QAbstractItemModel):
     def deleteRecording(self, index):
         # TODO: make sure we always have atleast one recording
         pass
+    
+    def recordCurrentFrame(self):
+        self.recordFrame(self.curImageIndex)
+    
+    def recordFrame(self, index):
+        """ Record the image at the given index for the current time """
+        LOG.debug('Recording image at index: {0} ({1})'.format(index, self.images[index]))
+        recordingIndex = self.curFrameRecording.get_index(self.curTime)
+        if recordingIndex is None:
+            # the first frame
+            recordingIndex = 0
+            LOG.debug('this is the first frame')
+        else:
+            # insert after current frame
+            recordingIndex += 1
+        # get out time of the previous frame
+        outTime = self.curFrameRecording.out_time(recordingIndex - 1)
+        image = self.images[index]
+        duration = self.curTime - outTime
+        LOG.debug('outTime {0}, duration {1}'.format(outTime, duration))
+        # if duration is 0, check and replace the frame at recordingIndex
+        self.curFrameRecording.insert(recordingIndex, image, duration)
     
     
     # image collection methods
@@ -218,12 +311,14 @@ class StoryTimeModel(QAbstractItemModel):
     def nextImage(self):
         return self.pixmapCache.getPixmap(self.imageCollection.next(seek=False))
     
-    def loadPrevImage(self):
-        self.imageCollection.prev()
-        self.imageDataChanged()
+    def loadImageAtTime(self, time):
+        frame = self.curFrameRecording.get_frame(time)
+        if frame is not None:
+            self.imageCollection.seekToImage(frame.image)
+            self.imageDataChanged()
     
-    def loadNextImage(self):
-        self.imageCollection.next()
+    def loadImage(self, index):
+        self.imageCollection.seek = index
         self.imageDataChanged()
     
     
@@ -236,7 +331,7 @@ class StoryTimeModel(QAbstractItemModel):
         return 1
     
     def data(self, index, role):
-        LOG.debug('mapping={0} role={1}'.format(Mappings.names[index.column()], role))
+        #LOG.debug('mapping={0} role={1}'.format(Mappings.names[index.column()], role))
         if not index.isValid():
             return
         # we don't care about rows since our model
@@ -248,20 +343,35 @@ class StoryTimeModel(QAbstractItemModel):
     
     
     def setData(self, index, value, role = Qt.EditRole):
-        LOG.debug('mapping={0} value={1}'.format(Mappings.names[index.column()], value)) #.toPyObject()))
+        #LOG.debug('mapping={0} value={1}'.format(Mappings.names[index.column()], value))
         
         m = index.column()
         
-        if m == Mappings.curImageIndex:
-            self.imageCollection.seek = value
-            self.imageDataChanged()
+        if m == Mappings.curImageIndex and self.curImageIndex != value:
+            # only updates if the new index is different
+            if self.isRecording:
+                self.recordCurrentFrame()
+            self.loadImage(value)
             return True
         elif m == Mappings.curTime:
             self.curTime = value
-            self.mappingChanged(m)
-            self.mappingChanged(Mappings.timeDisplay)
+            if not self.isRecording:
+                self.loadImageAtTime(value)
+            self.timeDataChanged()
             return True
         
+        elif m == Mappings.isRecording and self.isRecording != value:
+            self.isRecording = value
+            if not self.isRecording:
+                # recording has just stopped. record the last frame
+                self.recordCurrentFrame()
+            elif len(self.curFrameRecording) != 0:
+                # start a new recording cause this ones already been used
+                self.newRecording()
+                self.curTime = 0
+                self.timeDataChanged()
+            self.recordingDataChanged()
+            return True
         elif m == Mappings.recordingIndex:
             self.recordingIndex = max(min(value, self.recordingCount - 1), 0)
             self.recordingDataChanged()
@@ -275,7 +385,7 @@ class StoryTimeModel(QAbstractItemModel):
         return False
     
     def mappingChanged(self, mapping):
-        self.dataChanged.emit(self.index(0, mapping), self.index(0, mapping))
+        self.dataChanged.emit(self.mappingIndex(mapping), self.mappingIndex(mapping))
     
     def imageDataChanged(self):
         self.mappingChanged(Mappings.imageCount)
@@ -294,74 +404,18 @@ class StoryTimeModel(QAbstractItemModel):
         self.mappingChanged(Mappings.recordingDurationDisplay)
         self.mappingChanged(Mappings.recordingImageCount)
     
+    def timeDataChanged(self):
+        self.mappingChanged(Mappings.curTime)
+        self.mappingChanged(Mappings.timeDisplay)
+    
     def index(self, row=0, column=0, parent=None):
         return self.createIndex(row, column)
+    
+    def mappingIndex(self, mapping):
+        return self.index(0, mapping)
     
     def parent(self, index):
         """ There is only one viable index, and therefore no feasible parent """
         return QModelIndex()
-
-
-
-class PixmapCache(object):
-    def __init__(self):
-        self.clear()
-    
-    def __getitem__(self, name):
-        return self._data[self.normKey(name)]
-    
-    def __setitem__(self, name, value):
-        self._data[self.normKey(name)] = value
-    
-    def __delitem__(self, name):
-        del self._data[self.normKey(name)]
-    
-    def clear(self):
-        self._data = {}
-    
-    def items(self):
-        return self._data.items()
-    
-    def keys(self):
-        return self._data.keys()
-    
-    def values(self):
-        return self._data.values()
-    
-    def has_key(self, key):
-        return self._data.has_key(self.normKey(key))
-    
-    def getPixmap(self, path):
-        if not isinstance(path, (str, unicode)):
-            return
-        if os.path.isfile(path):
-            if self.has_key(path):
-                # pixmap already loaded
-                return self[path]
-            else:
-                # load the pixmap
-                pixmap = QPixmap(path)
-                self[path] = pixmap
-                return pixmap
-        return None
-    
-    def normKey(self, path):
-        return os.path.normpath(path).lower()
-    
-    def cache(self, paths, keepOld=False):
-        normpaths = [self.normKey(p) for p in paths]
-        removed = 0
-        # remove unneded paths
-        for k in self.keys():
-            if k not in normpaths:
-                del self[k]
-                removed += 1
-        # cache the rest
-        added = 0
-        for p in paths:
-            if not self.has_key(p):
-                self.getPixmap(p)
-                added += 1
-        LOG.debug('Updated pixmap cache. {0} removed, {1} added'.format(removed, added))
 
 

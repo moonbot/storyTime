@@ -173,12 +173,27 @@ class StoryTimeWindow(object):
         self._model.loadPaths(paths)
     
     def keyPressEvent(self, event):
+        # set the image index data the same way a mapping would
         if event.key() in (Qt.Key_Space, Qt.Key_Period, Qt.Key_Right, Qt.Key_Down):
-            self._model.loadNextImage()
+            index = self._model.mappingIndex(Mappings.curImageIndex)
+            value = self._model.curImageIndex + 1
+            self._model.setData(index, value)
             return True
         if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left, Qt.Key_Up):
-            self._model.loadPrevImage()
+            index = self._model.mappingIndex(Mappings.curImageIndex)
+            value = self._model.curImageIndex - 1
+            self._model.setData(index, value)
             return True
+        
+        # some time slider hotkeys
+        if event.key() == Qt.Key_R:
+            self.timeSlider.recordBtnAction()
+        if event.key() == Qt.Key_P:
+            self.timeSlider.togglePlayback()
+        if event.key() == Qt.Key_B:
+            self.timeSlider.toFirst()
+        if event.key() == Qt.Key_E:
+            self.timeSlider.toLast()
     
     def newRecording(self):
         self._model.newRecording()
@@ -315,16 +330,26 @@ class TimeSlider(QWidget):
         self.ui = loadUi('views/timeSlider.ui', self, True)
         self._dataMapper = QDataWidgetMapper()
         
+        # used to keep track of playback time
+        self.time = QElapsedTimer()
+        self.timer = QTimer()
+        self.timer.timerEvent = self.timerEvent
+        
         # hide hidden controls
         self.ui.IsRecordingCheck.setVisible(False)
         self.ui.IsPlayingCheck.setVisible(False)
         
+        self.ui.RecordingIndex.valueChanged.connect(self.recordingIndexChanged)
         self.ui.TimeSlider.valueChanged.connect(self._dataMapper.submit)
-        self.ui.RecordingIndex.valueChanged.connect(self._dataMapper.submit)
+        self.ui.IsPlayingCheck.toggled.connect(self.updateIsPlaying)
         self.ui.IsRecordingCheck.toggled.connect(self.updateIsRecording)
-        self.ui.RecordBtn.clicked.connect(self.recordBtnClicked)
+        self.ui.PlayBtn.clicked.connect(self.play)
+        self.ui.RecordBtn.clicked.connect(self.recordBtnAction)
         self.ui.NewBtn.clicked.connect(StoryTimeWindow.instance().newRecording)
-        
+    
+    @property
+    def timerInterval(self):
+        return (1 / self._model.recordingFps) * 1000
     
     def setSliderMaximum(self, value):
         self.ui.TimeSlider.setMaximum(value)
@@ -332,36 +357,87 @@ class TimeSlider(QWidget):
         return self.ui.TimeSlider.maximum()
     sliderMaximum = Property('int', getSliderMaximum, setSliderMaximum)
     
+    def recordingIndexChanged(self):
+        if self.isPlaying and not self.isRecording:
+            self.play()
+        self._dataMapper.submit()
+    
+    def updateIsPlaying(self, isPlaying):
+        # record button state
+        img = 'images/{0}.png'.format('stopBtn' if isPlaying else 'recordBtn')
+        self.ui.RecordBtn.setIcon(QIcon(img))
+        # enable/disable controls
+        setVisuallyEnabled(self.ui.PlayBtn, not isPlaying)
+        setVisuallyEnabled(self.ui.NewBtn, not isPlaying)
+        setVisuallyEnabled(self.ui.RecordingName, not isPlaying)
+        setVisuallyEnabled(self.ui.RecordingImageCount, not isPlaying)
+        setVisuallyEnabled(self.ui.RecordingImageCountLabel, not isPlaying)
+        setVisuallyEnabled(self.ui.RecordingDurationDisplay, not isPlaying)
+        self._dataMapper.submit()
+    
     def updateIsRecording(self, isRecording):
         # bg color
         style = 'background-color: rgb{0};'.format( (60, 25, 25) if isRecording else (40, 40, 40) )
         self.ui.MainFrame.setStyleSheet(style)
-        # record button state
-        img = 'images/{0}.png'.format('stopBtn' if isRecording else 'recordBtn')
-        self.ui.RecordBtn.setIcon(QIcon(img))
-        # enable/disable buttons
+        # enable/disable controls
         self.ui.TimeSlider.setEnabled(not isRecording)
-        setVisuallyEnabled(self.ui.PlayBtn, not isRecording)
-        setVisuallyEnabled(self.ui.NewBtn, not isRecording)
-        setVisuallyEnabled(self.ui.RecordingName, not isRecording)
-        setVisuallyEnabled(self.ui.RecordingImageCount, not isRecording)
-        setVisuallyEnabled(self.ui.RecordingImageCountLabel, not isRecording)
-        setVisuallyEnabled(self.ui.RecordingDurationDisplay, not isRecording)
         setVisuallyEnabled(self.ui.AudioCheck, not isRecording)
+        setVisuallyEnabled(self.ui.RecordingIndex, not isRecording)
+        self._dataMapper.submit()
     
-    def playBtnClicked(self):
-        pass
-    
-    def recordBtnClicked(self):
-        if self.ui.IsRecordingCheck.checkState() == Qt.Checked:
-            LOG.debug('Stopping recording')
-            self.ui.IsRecordingCheck.setCheckState(Qt.Unchecked)
-        elif self.ui.IsPlayingCheck.checkState() == Qt.Checked:
-            LOG.debug('Stopping playback')
-            self.ui.IsPlayingCheck.setCheckState(Qt.Unchecked)
+    def recordBtnAction(self):
+        if self.isRecording or self.isPlaying:
+            self.stop()
         else:
-            LOG.debug('Recording...')
-            self.ui.IsRecordingCheck.setCheckState(Qt.Checked)
+            self.record()
+    
+    @property
+    def isRecording(self):
+        return self.ui.IsRecordingCheck.checkState() == Qt.Checked
+    
+    @property
+    def isPlaying(self):
+        return self.ui.IsPlayingCheck.checkState() == Qt.Checked
+    
+    def record(self):
+        self.ui.IsRecordingCheck.setCheckState(Qt.Checked)
+        self.play()
+    
+    def play(self, time=0):
+        self.ui.IsPlayingCheck.setCheckState(Qt.Checked)
+        self.time.restart()
+        self.timer.start(self.timerInterval)
+    
+    def stop(self):
+        self.ui.IsPlayingCheck.setCheckState(Qt.Unchecked)
+        self.ui.IsRecordingCheck.setCheckState(Qt.Unchecked)
+        self.timer.stop()
+    
+    def togglePlayback(self):
+        if self.isRecording or self.isPlaying:
+            self.stop()
+        else:
+            self.play()
+    
+    def toFirst(self):
+        if not self.isPlaying and not self.isRecording:
+            self.ui.TimeSlider.setSliderPosition(0)
+            self._dataMapper.submit()
+    
+    def toLast(self):
+        if not self.isPlaying and not self.isRecording:
+            self.ui.TimeSlider.setSliderPosition(self._model.recordingDuration)
+            self._dataMapper.submit()
+    
+    def timerEvent(self, event):
+        sec = self.time.elapsed() * 0.001
+        frames = int(sec * self._model.recordingFps)
+        self.ui.TimeSlider.setSliderPosition(frames)
+        # determine whether to loop or not
+        if not self.isRecording and frames >= self._model.recordingDuration:
+            # reached the end of playback
+            self.stop()
+        self._dataMapper.submit()
     
     def setModel(self, model):
         self._model = model
@@ -384,6 +460,7 @@ class TimeSlider(QWidget):
         self.ui.TimeDisplay.installEventFilter(filter)
         self.ui.AudioCheck.installEventFilter(filter)
         self.ui.PlayBtn.installEventFilter(filter)
+        self.ui.RecordingIndex.installEventFilter(filter)
         self.ui.RecordBtn.installEventFilter(filter)
         self.ui.NewBtn.installEventFilter(filter)
 
@@ -669,31 +746,4 @@ class StoryTimeControl(object):
         self.fps.set(fps)
         self.images.set(images)
         self.times.set(times)
-        self.audioPath.set(audioPath)
-            
-    # Observer Functions
-    # -----------------
-        
-    def ctl_ob_audio_path(self):
-        self.audioHandler.filename = self.audioPath.get()
-        
-    def ctl_ob_countdown(self):
-        cd = self.countdown.get()
-        if cd is None:
-            return
-        hoursMs = cd['hours'] * 60 * 60 * 1000
-        minutesMs = cd['minutes'] * 60 * 1000
-        secondsMs = cd['seconds'] * 1000
-        self.countdownms.set(hoursMs + minutesMs + secondsMs)
-        
-    def ctl_ob_cur_frame(self):
-        if self.curFrame.get() < 1:
-            #if len(self.timing_data.get()) > 0:
-            self.curFrame.set(1)
-        if self.curImgFrame.get() < 1:
-            #if len(self.images.get()) > 0: 
-            self.curImgFrame.set(1)
-        if self.curFrame.get() > len(self.timing_data.get()):
-            self.curFrame.set(len(self.timing_data.get()))
-        if self.curImgFrame.get() > len(self.images.get()):
-            self.curImgFrame.set(len(self.images.get()))         
+        self.audioPath.set(audioPath)       

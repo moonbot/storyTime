@@ -114,26 +114,38 @@ class FrameRecording(object):
         """ Convert the given relative time to an absolute time """
         return time + self.start
     
-    def get_frame(self, time):
+    def get_index(self, time):
+        """ Return the index of the frame at the given time """
+        if len(self) == 0:
+            return
         rtime = self.relative_time(time)
         if rtime < 0:
-            return
+            return 0
+        elif rtime >= self.duration:
+            return len(self.frames) - 1
         t = 0
-        for f in self.frames:
+        for i, f in enumerate(self.frames):
             t += f.duration
             if rtime < t:
-                return f
-        return None
+                return i
+    
+    def get_frame(self, time):
+        """ Return the frame at the given time """
+        index = self.get_index(time)
+        if index is not None:
+            return self.frames[self.get_index(time)]
         
     def in_time(self, index):
-        if index < len(self.frames):
+        if index < len(self):
             rtime = sum([f.duration for f in self.frames[:index]])
             return self.absolute_time(rtime)
+        return self.absolute_time(0)
     
     def out_time(self, index):
-        if index < len(self.frames):
+        if index < len(self):
             rtime = sum([f.duration for f in self.frames[:index+1]])
             return self.absolute_time(rtime)
+        return self.absolute_time(0)
     
 
 
@@ -191,6 +203,7 @@ class AudioRecording(object):
     """
     def __init__(self):
         self.mtime = 0
+        # the audio's duration in seconds
         self.duration = 0
     
     def __repr__(self):
@@ -288,6 +301,14 @@ class ImageCollection(object):
     def clear(self):
         self._images = []
     
+    def index(self, image):
+        """
+        Return the index of the given image within the collection
+        Returns None if the image is not in the collection
+        """
+        if os.path.normpath(image) in self:
+            return self.images.index(os.path.normpath(image))
+    
     def append(self, image):
         """
         Append the given image or images to the collection.
@@ -347,4 +368,10 @@ class ImageCollection(object):
         else:
             i = self.validate_index(self.seek + 1)
         return self[i]
+    
+    def seekToImage(self, image):
+        """ Seek to the given image, if its in the collection. Otherwise ignore """
+        index = self.index(image)
+        if index is not None:
+            self.seek = index
 
