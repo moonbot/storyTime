@@ -48,7 +48,7 @@ class EventEater(QObject):
         elif event.type() == QEvent.DragMove:
             return self.dragMoveEvent(event)
             
-        elif event.type() == QEvent.DragLeave:
+        elif event.type() == QEvent.Drop:
             return self.dropEvent(event)
             
         else:
@@ -99,6 +99,7 @@ class StoryTimeWindow(object):
         #super(StoryTimeWindow, self).__init__(parent)
         #self.setupUi(self)
         self.ui = loadUi('views/main.ui')
+        self.ui.setAcceptDrops(True)
         self.ui.show()
         
         # setup model
@@ -120,6 +121,7 @@ class StoryTimeWindow(object):
         self.eventEater = EventEater()
         self.eventEater.keyPressEvent = self.keyPressEvent
         self.eventEater.handlePaths = self._model.loadPaths
+        self.ui.installEventFilter(self.eventEater)
         self.imageView.installEventFilter(self.eventEater)
         self.imageSlider.installEventFilter(self.eventEater)
         self.timeSlider.installEventFilter(self.eventEater)
@@ -305,8 +307,11 @@ class TimeSlider(QWidget):
     def installEventFilter(self, filter):
             # install the event filter on all appropriate objects
         self.ui.TimeSlider.installEventFilter(filter)
+        self.ui.TimeDisplay.installEventFilter(filter)
+        self.ui.AudioCheck.installEventFilter(filter)
         self.ui.PlayBtn.installEventFilter(filter)
         self.ui.RecordBtn.installEventFilter(filter)
+        self.ui.NewBtn.installEventFilter(filter)
 
 
 

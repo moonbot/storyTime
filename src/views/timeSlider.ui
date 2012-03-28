@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>735</width>
-    <height>89</height>
+    <width>775</width>
+    <height>87</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -50,19 +50,29 @@
          <number>4</number>
         </property>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,0,0,0,0,0,0,0">
           <item>
            <widget class="QLineEdit" name="RecordingName">
             <property name="minimumSize">
              <size>
-              <width>0</width>
-              <height>26</height>
+              <width>80</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>250</width>
+              <height>16777215</height>
              </size>
             </property>
             <property name="font">
              <font>
-              <pointsize>11</pointsize>
+              <family>Tahoma</family>
+              <pointsize>12</pointsize>
              </font>
+            </property>
+            <property name="acceptDrops">
+             <bool>false</bool>
             </property>
             <property name="text">
              <string>My Recording</string>
@@ -88,6 +98,12 @@
                 <height>16777215</height>
                </size>
               </property>
+              <property name="font">
+               <font>
+                <family>Tahoma</family>
+                <pointsize>12</pointsize>
+               </font>
+              </property>
               <property name="text">
                <string>0 images</string>
               </property>
@@ -106,6 +122,13 @@
                 <width>70</width>
                 <height>16777215</height>
                </size>
+              </property>
+              <property name="font">
+               <font>
+                <family>Tahoma</family>
+                <pointsize>12</pointsize>
+                <stylestrategy>PreferDefault</stylestrategy>
+               </font>
               </property>
               <property name="text">
                <string>00:00:00.00</string>
@@ -143,6 +166,12 @@
           </item>
           <item>
            <widget class="QCheckBox" name="AudioCheck">
+            <property name="font">
+             <font>
+              <family>Tahoma</family>
+              <pointsize>12</pointsize>
+             </font>
+            </property>
             <property name="text">
              <string>Audio</string>
             </property>
@@ -165,13 +194,13 @@
             <property name="maximumSize">
              <size>
               <width>115</width>
-              <height>16777215</height>
+              <height>30</height>
              </size>
             </property>
             <property name="font">
              <font>
-              <family>Lucida Console</family>
-              <pointsize>11</pointsize>
+              <family>Courier</family>
+              <pointsize>14</pointsize>
              </font>
             </property>
             <property name="text">
@@ -202,6 +231,12 @@
                <iconset>
                 <normaloff>images/playBtn.png</normaloff>images/playBtn.png</iconset>
               </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
+              </property>
              </widget>
             </item>
             <item>
@@ -225,6 +260,12 @@
                <iconset>
                 <normaloff>images/recordBtn.png</normaloff>images/recordBtn.png</iconset>
               </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
+              </property>
              </widget>
             </item>
             <item>
@@ -240,6 +281,11 @@
                 <width>40</width>
                 <height>30</height>
                </size>
+              </property>
+              <property name="font">
+               <font>
+                <family>Tahoma</family>
+               </font>
               </property>
               <property name="text">
                <string>New</string>
