@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>738</width>
-    <height>79</height>
+    <height>82</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -58,20 +58,20 @@
            <widget class="QLabel" name="ImageSliderLabel">
             <property name="minimumSize">
              <size>
-              <width>80</width>
+              <width>85</width>
               <height>0</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>80</width>
+              <width>85</width>
               <height>16</height>
              </size>
             </property>
             <property name="font">
              <font>
               <family>Courier</family>
-              <pointsize>12</pointsize>
+              <pointsize>11</pointsize>
              </font>
             </property>
             <property name="styleSheet">
@@ -112,12 +112,47 @@
            </spacer>
           </item>
           <item>
+           <widget class="QCheckBox" name="PrevImageCheck">
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label">
+            <property name="font">
+             <font>
+              <pointsize>8</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>Prev  |  Next</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="NextImageCheck">
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="CacheImagesBtn">
             <property name="font">
              <font>
               <family>Tahoma</family>
-              <pointsize>12</pointsize>
+              <pointsize>10</pointsize>
              </font>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
             </property>
             <property name="text">
              <string>Cache Images</string>
@@ -133,6 +168,9 @@
           </property>
           <item>
            <widget class="QSlider" name="ImageSlider">
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
+            </property>
             <property name="maximum">
              <number>100</number>
             </property>
@@ -191,8 +229,8 @@
      <y>40</y>
     </hint>
     <hint type="destinationlabel">
-     <x>387</x>
-     <y>66</y>
+     <x>394</x>
+     <y>76</y>
     </hint>
    </hints>
   </connection>
@@ -207,8 +245,8 @@
      <y>39</y>
     </hint>
     <hint type="destinationlabel">
-     <x>340</x>
-     <y>66</y>
+     <x>347</x>
+     <y>76</y>
     </hint>
    </hints>
   </connection>

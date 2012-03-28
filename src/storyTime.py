@@ -8,7 +8,6 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 __version__ = '0.2.0'
 
 from PySide.QtGui import QApplication
-#from PyQt4.QtGui import QApplication
 import controllers
 import logging
 import logging.handlers

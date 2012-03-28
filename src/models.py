@@ -9,8 +9,6 @@ from data import *
 from utils import enum, get_timecode
 from PySide.QtCore import *
 from PySide.QtGui import *
-#from PyQt4.QtCore import *
-#from PyQt4.QtGui import *
 import logging
 import os
 
@@ -218,7 +216,7 @@ class StoryTimeModel(QAbstractItemModel):
     
     @property
     def nextImage(self):
-        return self.pixmapCache.getPixmap(self.imageCollection.prev(seek=False))
+        return self.pixmapCache.getPixmap(self.imageCollection.next(seek=False))
     
     def loadPrevImage(self):
         self.imageCollection.prev()

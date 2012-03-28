@@ -9,10 +9,6 @@ from models import Mappings, StoryTimeModel
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
-#from PyQt4.QtCore import *
-#from PyQt4.QtGui import *
-#from PyQt4 import uic
-#Property = pyqtProperty
 import logging
 import os
 
@@ -38,6 +34,7 @@ def attachUi(widget, parent):
 
 class EventEater(QObject):
     def eventFilter(self, obj, event):
+        
         if event.type() == QEvent.KeyPress:
             return self.keyPressEvent(event)
             
@@ -109,6 +106,7 @@ class StoryTimeWindow(object):
         #super(StoryTimeWindow, self).__init__(parent)
         #self.setupUi(self)
         self.ui = loadUi('views/main.ui')
+        self.ui.setFocusPolicy(Qt.StrongFocus)
         self.ui.setAcceptDrops(True)
         self.ui.setWindowTitle('Story Time')
         self.ui.show()
@@ -116,9 +114,21 @@ class StoryTimeWindow(object):
         # setup model
         self._model = StoryTimeModel(self.ui)
         
-        self.imageView = ImageView(self.ui)
-        self.imageView.setModel(self._model)
-        self.ui.layoutImageView.addWidget(self.imageView)
+        # current image
+        self.curImageView = ImageView(Mappings.curImage, 1, self.ui)
+        self.curImageView.setModel(self._model)
+        self.ui.layoutCurImage.addWidget(self.curImageView)
+        # prev image
+        self.prevImageView = ImageView(Mappings.prevImage, 0, self.ui)
+        self.prevImageView.setModel(self._model)
+        self.ui.layoutPrevImage.addWidget(self.prevImageView)
+        # prev image
+        self.nextImageView = ImageView(Mappings.nextImage, 2, self.ui)
+        self.nextImageView.setModel(self._model)
+        self.ui.layoutNextImage.addWidget(self.nextImageView)
+        
+        self.setImageViewVisible('prev', False)
+        self.setImageViewVisible('next', False)
         
         self.imageSlider = ImageSlider(self.ui)
         self.imageSlider.setModel(self._model)
@@ -133,7 +143,6 @@ class StoryTimeWindow(object):
         self.eventEater.keyPressEvent = self.keyPressEvent
         self.eventEater.handlePaths = self._model.loadPaths
         self.ui.installEventFilter(self.eventEater)
-        self.imageView.installEventFilter(self.eventEater)
         self.imageSlider.installEventFilter(self.eventEater)
         self.timeSlider.installEventFilter(self.eventEater)
         
@@ -145,6 +154,20 @@ class StoryTimeWindow(object):
         self.ui.actionImportImages.triggered.connect(self.importImages)
         self.ui.actionExportForFCP.triggered.connect(self.exportForFCP)
         self.ui.actionExportForPremiere.triggered.connect(self.exportForPremiere)
+    
+    def setPrevImageViewVisible(self, visible):
+        self.setImageViewVisible('prev', visible)
+    
+    def setNextImageViewVisible(self, visible):
+        self.setImageViewVisible('next', visible)
+    
+    def setImageViewVisible(self, which, visible):
+        if not hasattr(self, '{0}ImageView'.format(which)):
+            return
+        view = getattr(self, '{0}ImageView'.format(which))
+        view.setVisible(visible)
+        self.ui.layoutImageViews.setStretch(view.index, int(visible))
+        
     
     def loadPaths(self, paths):
         self._model.loadPaths(paths)
@@ -205,39 +228,24 @@ class ImageView(QWidget):
     The image viewing widget for Story Time. Contains three graphics views
     for displaying the current, previous, and next images.
     """
-    def __init__(self, parent=None):
+    def __init__(self, pixmapMapping, index, parent=None):
         super(ImageView, self).__init__(parent)
-        #self.setupUi(self)
         self.ui = loadUi('views/imageView.ui', self, True)
-        self.ui.dragEnterEvent = self.dragEnterEvent
-        self.ui.dragMoveEvent = self.dragMoveEvent
-        self.ui.dropEvent = self.dropEvent
         self._dataMapper = QDataWidgetMapper()
-
-        self.ui.GraphicsViewPrev.setVisible(False)
-        self.ui.GraphicsViewNext.setVisible(False)
-
-
+        self.pixmapMapping = pixmapMapping
+        # for use when adjusting layout stretch
+        self.index = index
+        self.ui.GraphicsView.setStyleSheet( 'QGraphicsView { border-style: none; }' )
+    
     def getPixmap(self):
         return self.ui.GraphicsPixmapItem.pixmap()
     def setPixmap(self, data):
         self.ui.GraphicsPixmapItem.setPixmap(data)
+        self.resizeEvent()
     pixmap = Property("QPixmap", getPixmap, setPixmap)
-
-    """def getPrevPixmap(self):
-        return self.ui.GraphicsPixmapItemPrev.pixmap()
-    def setPrevPixmap(self, data):
-        self.ui.GraphicsPixmapItemPrev.setPixmap(data)
-    prevPixmap = Property("QPixmap", getPrevPixmap, setPrevPixmap)
-
-    def getNextPixmap(self):
-        return self.ui.GraphicsPixmapItemNext.pixmap()
-    def setNextPixmap(self, data):
-        self.ui.GraphicsPixmapItemNext.setPixmap(data)
-    nextPixmap = Property("QPixmap", getNextPixmap, setNextPixmap)"""
     
-    def addPixmapItem(self, graphicsView, pixmap):
-        item = QGraphicsPixmapItem(pixmap)
+    def addPixmapItem(self, graphicsView):
+        item = QGraphicsPixmapItem()
         scene = QGraphicsScene()
         scene.addItem(item)
         graphicsView.setScene(scene)
@@ -246,16 +254,12 @@ class ImageView(QWidget):
     def setModel(self, model):
         self._model = model
         self._dataMapper.setModel(model)
-        # add graphics item for each view
-        self.ui.GraphicsPixmapItem = self.addPixmapItem(self.ui.GraphicsView, model.curImage)
-        self._dataMapper.addMapping(self, Mappings.curImage, 'pixmap')
+        self.ui.GraphicsPixmapItem = self.addPixmapItem(self.ui.GraphicsView)
+        self._dataMapper.addMapping(self, self.pixmapMapping, 'pixmap')
         self._dataMapper.toFirst()
     
-    def installEventFilter(self, filter):
-            # install the event filter on all appropriate objects
-        self.ui.GraphicsView.installEventFilter(filter)    
-        self.ui.GraphicsViewPrev.installEventFilter(filter)
-        self.ui.GraphicsViewNext.installEventFilter(filter)
+    def resizeEvent(self, event=None):
+        self.ui.GraphicsView.fitInView(self.ui.GraphicsView.scene().itemsBoundingRect(), Qt.KeepAspectRatio)
 
 
 
@@ -272,6 +276,8 @@ class ImageSlider(QWidget):
         self._dataMapper = QDataWidgetMapper()
         
         self.ui.ImageSlider.valueChanged.connect(self._dataMapper.submit)
+        self.ui.PrevImageCheck.toggled.connect(StoryTimeWindow.instance().setPrevImageViewVisible)
+        self.ui.NextImageCheck.toggled.connect(StoryTimeWindow.instance().setNextImageViewVisible)
     
     def setSliderMaximum(self, value):
         self.ui.ImageSlider.setMaximum(max(value - 1, 0))
@@ -394,63 +400,8 @@ class StoryTimeControl(object):
     
     #audioHandler = AudioHandler()
     UPDATE_INTERVAL = 500
-        
-    # File Handling Functions
-    # -----------------------
     
-    def ctl_open(self):
-        """Browse for and open a StoryTime XML file"""
-        path = self.view_browse_open('Open...')
-        if path is not None and path != '':
-            with open(path, 'r') as openFile:
-                self.from_xml(openFile.read())
-            self.savePath.set(path)
-            self.audioHandler = AudioHandler(self.images.get()[0])
     
-    def ctl_import_from_sequence(self):
-        """Browse for and import an image sequence"""
-        path = self.view_browse_open('Import Image Sequence...')
-        if path is not None and path != '':
-            LOG.warning('Import Image Sequence not yet implemented...')
-            self.ctl_process_import(path)
-            
-    def ctl_import_directory(self):
-        """Browse for and import an image directory"""
-        path = self.view_browse_open_dir('Import Image Directory...')
-        if path is not None and path != '':
-            self.ctl_process_import(utils.listdir(path))
-        
-                
-    def ctl_process_import(self, paths):
-        """Update the current application state from the list of image files."""
-        paths = self.filter_image_paths(paths)
-        paths.sort()
-        if len(paths) > 0:
-            #self.times.set([1000 for x in range(0,len(self.images.get()))])
-            n = 1
-            for i in paths:
-                self.timing_data.get().append({'timing':1000,'image':i, 'imageNum':n})
-                n += 1
-            self.images.set(paths)
-            self.startFrame.set(1)
-            self.curFrame.set(1)
-            self.curImgFrame.set(1)
-            self.ctl_make_audio_path()
-    
-    def ctl_export_premiere(self):
-        """
-        Export the current application state to a Final Cut Pro XML file
-        formatted for Premiere.
-        """
-        self.ctl_process_export('Export to Premiere...', 'win')
-                
-    def ctl_export_fcp(self):
-        """
-        Export the current application state to a Final Cut Pro XML file
-        formatted for Final Cut Pro
-        """
-        self.ctl_process_export('Export to Final Cut Pro...', 'mac')
-                    
     def ctl_process_export(self, caption, operatingSystem):
         """
         Export the current application state to a Final Cut Pro XML file.
@@ -471,25 +422,6 @@ class StoryTimeControl(object):
                 }
                 with open(path, 'w') as exportFile:
                     exportFile.write(FcpXml(**fcpkw).getStr())
-                self.ctl_make_audio_path()
-            
-    def ctl_save(self):
-        """Save the current application state to a StoryTime XML file"""
-        if self.savePath.get() == '':
-            self.ctl_save_as()
-            return
-        self.ctl_make_audio_path()
-        with open(self.savePath.get(), 'w') as saveFile:
-            saveFile.write(self.to_xml())
-            
-    def ctl_save_as(self):
-        """Browse and save the current application state to a StoryTime XML file"""
-        if len(self.images.get()) > 0:
-            path = self.view_browse_save_as('Save As...')
-            if path is not None and path != '':
-                with open(path, 'w') as saveFile:
-                    saveFile.write(self.to_xml())
-                self.savePath.set(path)
                 self.ctl_make_audio_path()
                 
     def ctl_make_audio_path(self):
