@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>464</width>
-    <height>235</height>
+    <width>721</width>
+    <height>328</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -23,7 +23,7 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
-      <layout class="QVBoxLayout" name="uiLayoutPrev">
+      <layout class="QVBoxLayout" name="LayoutPrev">
        <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
@@ -38,7 +38,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QGraphicsView" name="uiGraphicsViewPrev">
+        <widget class="QGraphicsView" name="GraphicsViewPrev">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Expanding">
            <horstretch>0</horstretch>
@@ -80,14 +80,14 @@
      <item>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
-        <widget class="QGraphicsView" name="uiGraphicsView">
+        <widget class="QGraphicsView" name="GraphicsView">
          <property name="acceptDrops">
           <bool>false</bool>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="uiGraphicsViewLabel">
+        <widget class="QLabel" name="GraphicsViewLabel">
          <property name="text">
           <string>...</string>
          </property>
@@ -99,7 +99,7 @@
       </layout>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="uiLayoutNext">
+      <layout class="QVBoxLayout" name="LayoutNext">
        <item>
         <spacer name="verticalSpacer_3">
          <property name="orientation">
@@ -117,7 +117,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QGraphicsView" name="uiGraphicsViewNext">
+        <widget class="QGraphicsView" name="GraphicsViewNext">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Expanding">
            <horstretch>0</horstretch>

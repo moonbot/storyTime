@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>735</width>
-    <height>83</height>
+    <height>89</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,7 +21,7 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QFrame" name="uiMainFrame">
+    <widget class="QFrame" name="MainFrame">
      <property name="styleSheet">
       <string notr="true">background-color: rgb(40,40,40);</string>
      </property>
@@ -52,7 +52,7 @@
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_3">
           <item>
-           <widget class="QLineEdit" name="uiRecordingName">
+           <widget class="QLineEdit" name="RecordingName">
             <property name="minimumSize">
              <size>
               <width>0</width>
@@ -75,7 +75,7 @@
              <number>0</number>
             </property>
             <item>
-             <widget class="QLabel" name="uiImageCountDisplay">
+             <widget class="QLabel" name="ImageCountDisplay">
               <property name="minimumSize">
                <size>
                 <width>70</width>
@@ -94,7 +94,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QLabel" name="uiDurationDisplay">
+             <widget class="QLabel" name="DurationDisplay">
               <property name="minimumSize">
                <size>
                 <width>70</width>
@@ -128,31 +128,28 @@
            </spacer>
           </item>
           <item>
-           <widget class="QSpinBox" name="uiTimeSliderMax"/>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="uiIsPlayingCheck">
+           <widget class="QCheckBox" name="IsPlayingCheck">
             <property name="text">
              <string>_2</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="uiIsRecordingCheck">
+           <widget class="QCheckBox" name="IsRecordingCheck">
             <property name="text">
              <string>_1</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="uiAudioCheck">
+           <widget class="QCheckBox" name="AudioCheck">
             <property name="text">
              <string>Audio</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="uiTimeDisplay">
+           <widget class="QPushButton" name="TimeDisplay">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -185,7 +182,7 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
-             <widget class="QPushButton" name="uiPlayBtn">
+             <widget class="QPushButton" name="PlayBtn">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
@@ -208,7 +205,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="uiRecordBtn">
+             <widget class="QPushButton" name="RecordBtn">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
@@ -231,7 +228,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="uiNewBtn">
+             <widget class="QPushButton" name="NewBtn">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
@@ -254,7 +251,7 @@
          </layout>
         </item>
         <item>
-         <widget class="QSlider" name="uiTimeSlider">
+         <widget class="QSlider" name="TimeSlider">
           <property name="maximum">
            <number>240</number>
           </property>
@@ -301,7 +298,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>uiTimeSlider</sender>
+   <sender>TimeSlider</sender>
    <signal>valueChanged(int)</signal>
    <receiver>progressBar</receiver>
    <slot>setValue(int)</slot>
@@ -317,7 +314,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>uiTimeSlider</sender>
+   <sender>TimeSlider</sender>
    <signal>rangeChanged(int,int)</signal>
    <receiver>progressBar</receiver>
    <slot>setRange(int,int)</slot>

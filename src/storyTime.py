@@ -7,7 +7,8 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 
 __version__ = '0.2.0'
 
-from PyQt4.QtGui import QApplication
+from PySide.QtGui import QApplication
+#from PyQt4.QtGui import QApplication
 import controllers
 import logging
 import logging.handlers
@@ -33,9 +34,8 @@ if __name__ == '__main__':
     LOG.debug('%s %s', 'StoryTime', __version__)
     
     app = QApplication(sys.argv)
-    app.setStyle('Plastique')
+    app.setStyle('Plastique')    
     wnd = controllers.StoryTimeWindow()
-    wnd.show()
     # load any given files
     if len(sys.argv) > 1:
         wnd.loadPaths(sys.argv[1:])

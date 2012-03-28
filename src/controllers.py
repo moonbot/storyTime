@@ -6,221 +6,75 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
 from models import Mappings, StoryTimeModel
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from PyQt4 import uic
+
+from PySide.QtCore import *
+from PySide.QtGui import *
+from PySide.QtUiTools import QUiLoader
+#from PyQt4.QtCore import *
+#from PyQt4.QtGui import *
+#from PyQt4 import uic
+#Property = pyqtProperty
 import logging
 
 LOG = logging.getLogger(__name__)
 
+def loadUi(path, parent=None, attach=False):
+    loader = QUiLoader()
+    file_ = QFile(path)
+    file_.open(QFile.ReadOnly)
+    widget = loader.load(file_, parent)
+    if attach:
+        attachUi(widget, parent)
+    file_.close()
+    return widget
 
-base, form = uic.loadUiType('views/main.ui')
+def attachUi(widget, parent):
+    if parent.layout() is None:
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        parent.setLayout(layout)
+    parent.layout().addWidget(widget)
 
-class StoryTimeWindow(base, form):
-    """
-    The Main Story Time Window. Loads and attaches each of the main control
-    widgets (ImageView, ImageSlider, TimeSlider) and connects them to a model.
-    """
-    def __init__(self, parent=None):
-        super(StoryTimeWindow, self).__init__(parent)
-        self.setupUi(self)
-        
-        # setup model
-        self._model = StoryTimeModel(self)
-        
-        self.imageView = ImageView(self)
-        self.imageView.setModel(self._model)
-        self.layoutImageView.addWidget(self.imageView)
-        
-        self.imageSlider = ImageSlider(self)
-        self.imageSlider.setModel(self._model)
-        self.layoutControls.addWidget(self.imageSlider)
-        
-        self.timeSlider = TimeSlider(self)
-        self.timeSlider.setModel(self._model)
-        self.layoutControls.addWidget(self.timeSlider)
-    
+
+
+class EventEater(QObject):
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.KeyPress:
+            return self.keyPressEvent(event)
+            
+        elif event.type() == QEvent.DragEnter:
+            return self.dragEnterEvent(event)
+            
+        elif event.type() == QEvent.DragMove:
+            return self.dragMoveEvent(event)
+            
+        elif event.type() == QEvent.DragLeave:
+            return self.dropEvent(event)
+            
+        else:
+            # standard event processing
+            return QObject.eventFilter(self, obj, event)
+
     def keyPressEvent(self, event):
-        if event.key() in (Qt.Key_Space, Qt.Key_Period, Qt.Key_Right):
-            self._model.loadNextImage()
-        if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left):
-            self._model.loadPrevImage()
-    
-    def loadPaths(self, paths):
-        self._model.loadPaths(paths)
-
-
-
-imageSliderBase, imageSliderForm = uic.loadUiType('views/imageSlider.ui')
-
-class ImageSlider(imageSliderBase, imageSliderForm):
-    """
-    The ImageSlider widget for Story Time. Contains a slider that controls
-    which image is currently displayed, as well as labels providing information
-    about the current image path as well as how many images there are.
-    """
-    def __init__(self, parent=None):
-        super(ImageSlider, self).__init__(parent)
-        self.setupUi(self)
-        self._dataMapper = QDataWidgetMapper()
-        
-        QObject.connect(self.uiImageSlider, SIGNAL('valueChanged(int)'), self._dataMapper.submit)
-    
-    def setSliderMaximum(self, value):
-        self.uiImageSlider.setMaximum(max(value - 1, 0))
-        LOG.debug(self.uiImageSlider.minimum())
-        LOG.debug(self.uiImageSlider.maximum())
-    def getSliderMaximum(self):
-        return self.uiImageSlider.maximum()
-    sliderMaximum = pyqtProperty('int', getSliderMaximum, setSliderMaximum)
-    
-    def uiImageSliderSetMaximum(self, value):
-        self.uiImageSlider.setMaximum(value - 1)
-    
-    def setModel(self, model):
-        self._model = model
-        self._dataMapper.setModel(model)
-        self._dataMapper.addMapping(self.uiImagePath, Mappings.curImagePath, 'text')
-        self._dataMapper.addMapping(self.uiImageSlider, Mappings.curImageIndex, 'sliderPosition')
-        self._dataMapper.addMapping(self, Mappings.imageCount, 'sliderMaximum')
-        self._dataMapper.addMapping(self.uiImageSliderLabel, Mappings.curImageIndexLabel, 'text')
-        self._dataMapper.setCurrentModelIndex(model.index())
-        
-        QObject.connect(self.uiCacheImagesBtn, SIGNAL('clicked()'), self._model.cacheAllImages)
-
-
-
-
-timeSliderBase, timeSliderForm = uic.loadUiType('views/timeSlider.ui')
-
-class TimeSlider(timeSliderBase, timeSliderForm):
-    """
-    The TimeSlider widget for Story Time. Controls/displays the current
-    playback state of the current recording.
-    """
-    def __init__(self, parent=None):
-        super(TimeSlider, self).__init__(parent)
-        self.setupUi(self)
-        self._dataMapper = QDataWidgetMapper()
-        
-        # hide hidden controls
-        self.uiIsRecordingCheck.setVisible(False)
-        self.uiIsPlayingCheck.setVisible(False)
-        
-        self.uiTimeSliderMax.setVisible(False)
-        # time slider connections
-        QObject.connect(self.uiTimeSliderMax, SIGNAL('valueChanged(int)'), self.uiTimeSlider.setMaximum)
-        QObject.connect(self.uiTimeSlider, SIGNAL('valueChanged(int)'), self._dataMapper.submit)
-        # mapped checkbox updates recording display
-        QObject.connect(self.uiIsRecordingCheck, SIGNAL('toggled(bool)'), self.updateIsRecording)
-        # playback/recording buttons
-        QObject.connect(self.uiRecordBtn, SIGNAL('clicked()'), self.recordBtnClicked)
-    
-    def updateIsRecording(self, isRecording):
-        # bg color
-        style = 'background-color: rgb{0};'.format( (60, 25, 25) if isRecording else (40, 40, 40) )
-        self.uiMainFrame.setStyleSheet(style)
-        # record button state
-        img = 'images/{0}.png'.format('stopBtn' if isRecording else 'recordBtn')
-        self.uiRecordBtn.setIcon(QIcon(img))
-        # enable/disable buttons
-        self.uiTimeSlider.setEnabled(not isRecording)
-        setVisuallyEnabled(self.uiPlayBtn, not isRecording)
-        setVisuallyEnabled(self.uiNewBtn, not isRecording)
-        setVisuallyEnabled(self.uiRecordingName, not isRecording)
-        setVisuallyEnabled(self.uiImageCountDisplay, not isRecording)
-        setVisuallyEnabled(self.uiDurationDisplay, not isRecording)
-        setVisuallyEnabled(self.uiAudioCheck, not isRecording)
-    
-    def playBtnClicked(self):
         pass
     
-    def recordBtnClicked(self):
-        if self.uiIsRecordingCheck.checkState() == Qt.Checked:
-            LOG.debug('Stopping recording')
-            self.uiIsRecordingCheck.setCheckState(Qt.Unchecked)
-        elif self.uiIsPlayingCheck.checkState() == Qt.Checked:
-            LOG.debug('Stopping playback')
-            self.uiIsPlayingCheck.setCheckState(Qt.Unchecked)
-        else:
-            LOG.debug('Recording...')
-            self.uiIsRecordingCheck.setCheckState(Qt.Checked)
-    
-    def setModel(self, model):
-        self._model = model
-        self._dataMapper.setModel(model)
-        self._dataMapper.addMapping(self.uiIsRecordingCheck, Mappings.isRecording, 'checked')
-        self._dataMapper.addMapping(self.uiTimeSlider, Mappings.curTime, 'sliderPosition')
-        self._dataMapper.addMapping(self.uiTimeDisplay, Mappings.timeDisplay, 'text')
-        self._dataMapper.setCurrentModelIndex(model.index())
-        
-        # connect some things to the model
-        QObject.connect(self.uiTimeDisplay, SIGNAL('clicked()'), self._model.toggleTimeDisplay)
-
-
-
-
-imageViewBase, imageViewForm = uic.loadUiType('views/imageView.ui')
-
-class ImageView(imageViewBase, imageViewForm):
-    """
-    The image viewing widget for Story Time. Contains three graphics views
-    for displaying the current, previous, and next images.
-    """
-    def __init__(self, parent=None):
-        super(ImageView, self).__init__(parent)
-        self.setupUi(self)
-        self._dataMapper = QDataWidgetMapper()
-        
-        self.uiGraphicsViewPrev.setVisible(False)
-        self.uiGraphicsViewNext.setVisible(False)
-    
-    
-    def getPixmap(self):
-        return self.uiGraphicsPixmapItem.pixmap()
-    def setPixmap(self, data):
-        self.uiGraphicsPixmapItem.setPixmap(data)
-    pixmap = pyqtProperty("QPixmap", getPixmap, setPixmap)
-    
-    """def getPrevPixmap(self):
-        return self.uiGraphicsPixmapItemPrev.pixmap()
-    def setPrevPixmap(self, data):
-        self.uiGraphicsPixmapItemPrev.setPixmap(data)
-    prevPixmap = pyqtProperty("QPixmap", getPrevPixmap, setPrevPixmap)
-    
-    def getNextPixmap(self):
-        return self.uiGraphicsPixmapItemNext.pixmap()
-    def setNextPixmap(self, data):
-        self.uiGraphicsPixmapItemNext.setPixmap(data)
-    nextPixmap = pyqtProperty("QPixmap", getNextPixmap, setNextPixmap)"""
-    
-    def setModel(self, model):
-        self._model = model
-        self._dataMapper.setModel(model)
-        # add graphics item for each view
-        self.uiGraphicsPixmapItem = self.addPixmapItem(self.uiGraphicsView, model.curImage)
-        self._dataMapper.addMapping(self, Mappings.curImage, 'pixmap')
-        self._dataMapper.setCurrentModelIndex(model.index())
-    
-    def addPixmapItem(self, graphicsView, pixmap):
-        item = QGraphicsPixmapItem(pixmap)
-        scene = QGraphicsScene()
-        scene.addItem(item)
-        graphicsView.setScene(scene)
-        return item
+    def handlePaths(self, paths):
+        pass
     
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls:
             event.accept()
         else:
             event.ignore()
-            
+        return True
+
     def dragMoveEvent(self, event):
         if event.mimeData().hasUrls:
             event.setDropAction(Qt.CopyAction)
             event.accept()
         else:
             event.ignore()
+        return True
 
     def dropEvent(self, event):
         if event.mimeData().hasUrls:
@@ -230,7 +84,229 @@ class ImageView(imageViewBase, imageViewForm):
             for url in event.mimeData().urls():
                 paths.append(str(url.toLocalFile()))
             # tell the model to load the given paths
-            self._model.loadPaths(paths)
+            self.handlePaths(paths)
+        return True
+
+
+#base, form = uic.loadUiType('views/main.ui')
+
+class StoryTimeWindow(object):
+    """
+    The Main Story Time Window. Loads and attaches each of the main control
+    widgets (ImageView, ImageSlider, TimeSlider) and connects them to a model.
+    """    
+    def __init__(self):
+        #super(StoryTimeWindow, self).__init__(parent)
+        #self.setupUi(self)
+        self.ui = loadUi('views/main.ui')
+        self.ui.show()
+        
+        # setup model
+        self._model = StoryTimeModel(self.ui)
+        
+        self.imageView = ImageView(self.ui)
+        self.imageView.setModel(self._model)
+        self.ui.layoutImageView.addWidget(self.imageView)
+        
+        self.imageSlider = ImageSlider(self.ui)
+        self.imageSlider.setModel(self._model)
+        self.ui.layoutControls.addWidget(self.imageSlider)
+        
+        self.timeSlider = TimeSlider(self.ui)
+        self.timeSlider.setModel(self._model)
+        self.ui.layoutControls.addWidget(self.timeSlider)
+        
+        # setup key press eater
+        self.eventEater = EventEater()
+        self.eventEater.keyPressEvent = self.keyPressEvent
+        self.eventEater.handlePaths = self._model.loadPaths
+        self.imageView.installEventFilter(self.eventEater)
+        self.imageSlider.installEventFilter(self.eventEater)
+        self.timeSlider.installEventFilter(self.eventEater)
+    
+    def loadPaths(self, paths):
+        self._model.loadPaths(paths)
+    
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Space, Qt.Key_Period, Qt.Key_Right, Qt.Key_Down):
+            self._model.loadNextImage()
+            return True
+        if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left, Qt.Key_Up):
+            self._model.loadPrevImage()
+            return True
+
+
+
+class ImageView(QWidget):
+    """
+    The image viewing widget for Story Time. Contains three graphics views
+    for displaying the current, previous, and next images.
+    """
+    def __init__(self, parent=None):
+        super(ImageView, self).__init__(parent)
+        #self.setupUi(self)
+        self.ui = loadUi('views/imageView.ui', self, True)
+        self.ui.dragEnterEvent = self.dragEnterEvent
+        self.ui.dragMoveEvent = self.dragMoveEvent
+        self.ui.dropEvent = self.dropEvent
+        self._dataMapper = QDataWidgetMapper()
+
+        self.ui.GraphicsViewPrev.setVisible(False)
+        self.ui.GraphicsViewNext.setVisible(False)
+
+
+    def getPixmap(self):
+        return self.ui.GraphicsPixmapItem.pixmap()
+    def setPixmap(self, data):
+        self.ui.GraphicsPixmapItem.setPixmap(data)
+    pixmap = Property("QPixmap", getPixmap, setPixmap)
+
+    """def getPrevPixmap(self):
+        return self.ui.GraphicsPixmapItemPrev.pixmap()
+    def setPrevPixmap(self, data):
+        self.ui.GraphicsPixmapItemPrev.setPixmap(data)
+    prevPixmap = Property("QPixmap", getPrevPixmap, setPrevPixmap)
+
+    def getNextPixmap(self):
+        return self.ui.GraphicsPixmapItemNext.pixmap()
+    def setNextPixmap(self, data):
+        self.ui.GraphicsPixmapItemNext.setPixmap(data)
+    nextPixmap = Property("QPixmap", getNextPixmap, setNextPixmap)"""
+    
+    def addPixmapItem(self, graphicsView, pixmap):
+        item = QGraphicsPixmapItem(pixmap)
+        scene = QGraphicsScene()
+        scene.addItem(item)
+        graphicsView.setScene(scene)
+        return item
+
+    def setModel(self, model):
+        self._model = model
+        self._dataMapper.setModel(model)
+        # add graphics item for each view
+        self.ui.GraphicsPixmapItem = self.addPixmapItem(self.ui.GraphicsView, model.curImage)
+        self._dataMapper.addMapping(self, Mappings.curImage, 'pixmap')
+        self._dataMapper.toFirst()
+    
+    def installEventFilter(self, filter):
+            # install the event filter on all appropriate objects
+        self.ui.GraphicsView.installEventFilter(filter)    
+        self.ui.GraphicsViewPrev.installEventFilter(filter)
+        self.ui.GraphicsViewNext.installEventFilter(filter)
+
+
+
+class ImageSlider(QWidget):
+    """
+    The ImageSlider widget for Story Time. Contains a slider that controls
+    which image is currently displayed, as well as labels providing information
+    about the current image path as well as how many images there are.
+    """
+    def __init__(self, parent=None):
+        super(ImageSlider, self).__init__(parent)
+        #self.setupUi(self)
+        self.ui = loadUi('views/imageSlider.ui', self, True)
+        self._dataMapper = QDataWidgetMapper()
+        
+        QObject.connect(self.ui.ImageSlider, SIGNAL('valueChanged(int)'), self._dataMapper.submit)
+    
+    def setSliderMaximum(self, value):
+        self.ui.ImageSlider.setMaximum(max(value - 1, 0))
+    def getSliderMaximum(self):
+        return self.ui.ImageSlider.maximum()
+    sliderMaximum = Property('int', getSliderMaximum, setSliderMaximum)
+    
+    def setModel(self, model):
+        self._model = model
+        self._dataMapper.setModel(model)
+        self._dataMapper.addMapping(self.ui.ImagePath, Mappings.curImagePath, 'text')
+        self._dataMapper.addMapping(self.ui.ImageSlider, Mappings.curImageIndex, 'sliderPosition')
+        self._dataMapper.addMapping(self, Mappings.imageCount, 'sliderMaximum')
+        self._dataMapper.addMapping(self.ui.ImageSliderLabel, Mappings.curImageIndexLabel, 'text')
+        self._dataMapper.toFirst()
+        
+        QObject.connect(self.ui.CacheImagesBtn, SIGNAL('clicked()'), self._model.cacheAllImages)
+    
+    def installEventFilter(self, filter):
+        # install the event filter on all appropriate objects
+        self.ui.ImageSlider.installEventFilter(filter)
+        self.ui.CacheImagesBtn.installEventFilter(filter)
+
+
+
+
+class TimeSlider(QWidget):
+    """
+    The TimeSlider widget for Story Time. Controls/displays the current
+    playback state of the current recording.
+    """
+    def __init__(self, parent=None):
+        super(TimeSlider, self).__init__(parent)
+        #self.setupUi(self)
+        self.ui = loadUi('views/timeSlider.ui', self, True)
+        self._dataMapper = QDataWidgetMapper()
+        
+        # hide hidden controls
+        self.ui.IsRecordingCheck.setVisible(False)
+        self.ui.IsPlayingCheck.setVisible(False)
+        
+        QObject.connect(self.ui.TimeSlider, SIGNAL('valueChanged(int)'), self._dataMapper.submit)
+        QObject.connect(self.ui.IsRecordingCheck, SIGNAL('toggled(bool)'), self.updateIsRecording)
+        QObject.connect(self.ui.RecordBtn, SIGNAL('clicked()'), self.recordBtnClicked)
+    
+    def setSliderMaximum(self, value):
+        self.ui.TimeSlider.setMaximum(value)
+    def getSliderMaximum(self):
+        return self.ui.TimeSlider.maximum()
+    sliderMaximum = Property('int', getSliderMaximum, setSliderMaximum)
+    
+    def updateIsRecording(self, isRecording):
+        # bg color
+        style = 'background-color: rgb{0};'.format( (60, 25, 25) if isRecording else (40, 40, 40) )
+        self.ui.MainFrame.setStyleSheet(style)
+        # record button state
+        img = 'images/{0}.png'.format('stopBtn' if isRecording else 'recordBtn')
+        self.ui.RecordBtn.setIcon(QIcon(img))
+        # enable/disable buttons
+        self.ui.TimeSlider.setEnabled(not isRecording)
+        setVisuallyEnabled(self.ui.PlayBtn, not isRecording)
+        setVisuallyEnabled(self.ui.NewBtn, not isRecording)
+        setVisuallyEnabled(self.ui.RecordingName, not isRecording)
+        setVisuallyEnabled(self.ui.ImageCountDisplay, not isRecording)
+        setVisuallyEnabled(self.ui.DurationDisplay, not isRecording)
+        setVisuallyEnabled(self.ui.AudioCheck, not isRecording)
+    
+    def playBtnClicked(self):
+        pass
+    
+    def recordBtnClicked(self):
+        if self.ui.IsRecordingCheck.checkState() == Qt.Checked:
+            LOG.debug('Stopping recording')
+            self.ui.IsRecordingCheck.setCheckState(Qt.Unchecked)
+        elif self.ui.IsPlayingCheck.checkState() == Qt.Checked:
+            LOG.debug('Stopping playback')
+            self.ui.IsPlayingCheck.setCheckState(Qt.Unchecked)
+        else:
+            LOG.debug('Recording...')
+            self.ui.IsRecordingCheck.setCheckState(Qt.Checked)
+    
+    def setModel(self, model):
+        self._model = model
+        self._dataMapper.setModel(model)
+        self._dataMapper.addMapping(self.ui.IsRecordingCheck, Mappings.isRecording, 'checked')
+        self._dataMapper.addMapping(self.ui.TimeSlider, Mappings.curTime, 'sliderPosition')
+        self._dataMapper.addMapping(self.ui.TimeDisplay, Mappings.timeDisplay, 'text')
+        self._dataMapper.addMapping(self, Mappings.duration, 'sliderMaximum')
+        self._dataMapper.toFirst()
+        
+        # connect some things to the model
+        QObject.connect(self.ui.TimeDisplay, SIGNAL('clicked()'), self._model.toggleTimeDisplay)
+    
+    def installEventFilter(self, filter):
+            # install the event filter on all appropriate objects
+        self.ui.TimeSlider.installEventFilter(filter)
+        self.ui.PlayBtn.installEventFilter(filter)
+        self.ui.RecordBtn.installEventFilter(filter)
 
 
 
@@ -238,6 +314,7 @@ def setVisuallyEnabled(control, enabled):
     style = '' if enabled else 'color: rgb(120, 120, 120);'
     control.setEnabled(enabled)
     control.setStyleSheet(style)
+
 
 
 class StoryTimeControl(object):

@@ -7,8 +7,10 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 
 from data import *
 from utils import enum, get_timecode
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PySide.QtCore import *
+from PySide.QtGui import *
+#from PyQt4.QtCore import *
+#from PyQt4.QtGui import *
 import logging
 import os
 
@@ -16,7 +18,7 @@ LOG = logging.getLogger(__name__)
 
 # TODO: cluster mappings that affect each other or create event pool presets
 Mappings = enum(
-    'isRecording', 'isPlaying', 'fps', 'curTime', 'timeDisplay', 'isTimeDisplayFrames',
+    'isRecording', 'isPlaying', 'fps', 'curTime', 'duration', 'timeDisplay', 'isTimeDisplayFrames',
     'imageCount', 'curImageIndex', 'curImageIndexLabel', 'curImagePath', 'curImage', 'prevImage', 'nextImage',
     'end',
 )
@@ -38,6 +40,8 @@ class StoryTimeModel(QAbstractItemModel):
         self.curRecording = None
         # current time of the playback timeline in frames
         self.curTime = 0
+        # the duration of the current recording in frames
+        self.duration = 240
         # current display mode of the time (time code vs frames)
         self.isTimeDisplayFrames = False
         # current image collection
@@ -203,16 +207,16 @@ class StoryTimeModel(QAbstractItemModel):
     
     
     def setData(self, index, value, role = Qt.EditRole):
-        LOG.debug('mapping={0} value={1}'.format(Mappings.names[index.column()], value.toPyObject()))
+        LOG.debug('mapping={0} value={1}'.format(Mappings.names[index.column()], value)) #.toPyObject()))
         
         m = index.column()
         
         if m == Mappings.curImageIndex:
-            self.imageCollection.seek = value.toPyObject()
+            self.imageCollection.seek = value
             self.imageDataChanged()
             return True
         elif m == Mappings.curTime:
-            self.curTime = value.toPyObject()
+            self.curTime = value
             self.mappingChanged(m)
             self.mappingChanged(Mappings.timeDisplay)
             return True

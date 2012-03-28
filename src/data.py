@@ -281,9 +281,9 @@ class ImageCollection(object):
             return value % len(self._images)
     
     def is_valid_image(self, image):
-        types = [x.strip('.') for x in self.imageTypes]
+        types = [x.strip('.').lower() for x in self.imageTypes]
         ext = os.path.splitext(image)[1].strip('.')
-        return ext in types
+        return ext.lower() in types
     
     def clear(self):
         self._images = []
