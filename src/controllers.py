@@ -9,6 +9,7 @@ from models import Mappings, StoryTimeModel
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide.QtUiTools import QUiLoader
+import audio
 import logging
 import os
 
@@ -52,7 +53,7 @@ class EventEater(QObject):
             return QObject.eventFilter(self, obj, event)
 
     def keyPressEvent(self, event):
-        pass
+        return False
     
     def handlePaths(self, paths):
         pass
@@ -146,6 +147,8 @@ class StoryTimeWindow(object):
         self.imageSlider.installEventFilter(self.eventEater)
         self.timeSlider.installEventFilter(self.eventEater)
         
+        # build some dynamic menus
+        self.buildAudioInputsMenu()
         # hookup menu actions
         self.ui.actionNewRecording.triggered.connect(self.newRecording)
         self.ui.actionOpenRecording.triggered.connect(self.openRecording)
@@ -167,7 +170,29 @@ class StoryTimeWindow(object):
         view = getattr(self, '{0}ImageView'.format(which))
         view.setVisible(visible)
         self.ui.layoutImageViews.setStretch(view.index, int(visible))
-        
+    
+    def buildAudioInputsMenu(self):
+        self.ui.menuAudioInputDevices.clear()
+        self.ui.audioInputGroup = QActionGroup(self.ui)
+        self.ui.audioInputGroup.triggered.connect(self.audioInputGroupTriggered)
+        for d in audio.inputDevices():
+            action = QAction(d['name'], self.ui)
+            action.setData(d['index'])
+            action.setCheckable(True)
+            if d['index'] == self._model.audioInputDeviceIndex:
+                action.setChecked(True)
+            self.ui.menuAudioInputDevices.addAction(action)
+            self.ui.audioInputGroup.addAction(action)
+    
+    def updateAudioInputsMenu(self):
+        for action in self.ui.audioInputGroup.actions():
+            checked = action.data() == self._model.audioInputDeviceIndex
+            action.setChecked(checked)
+    
+    def audioInputGroupTriggered(self):
+        value = self.ui.audioInputGroup.checkedAction().data()
+        index = self._model.mappingIndex(Mappings.audioInputDeviceIndex)
+        self._model.setData(index, value)
     
     def loadPaths(self, paths):
         self._model.loadPaths(paths)
@@ -188,12 +213,21 @@ class StoryTimeWindow(object):
         # some time slider hotkeys
         if event.key() == Qt.Key_R:
             self.timeSlider.recordBtnAction()
+            return True
         if event.key() == Qt.Key_P:
             self.timeSlider.togglePlayback()
+            return True
         if event.key() == Qt.Key_B:
             self.timeSlider.toFirst()
+            return True
         if event.key() == Qt.Key_E:
             self.timeSlider.toLast()
+            return True
+        if event.key() == Qt.Key_N:
+            self.newRecording()
+            return True
+        
+        return False
     
     def newRecording(self):
         self._model.newRecording()
@@ -340,7 +374,7 @@ class TimeSlider(QWidget):
         self.ui.IsPlayingCheck.setVisible(False)
         
         self.ui.RecordingIndex.valueChanged.connect(self.recordingIndexChanged)
-        self.ui.TimeSlider.valueChanged.connect(self._dataMapper.submit)
+        self.ui.TimeSlider.valueChanged.connect(self.timeSliderValueChanged)
         self.ui.IsPlayingCheck.toggled.connect(self.updateIsPlaying)
         self.ui.IsRecordingCheck.toggled.connect(self.updateIsRecording)
         self.ui.PlayBtn.clicked.connect(self.play)
@@ -360,7 +394,15 @@ class TimeSlider(QWidget):
     def recordingIndexChanged(self):
         if self.isPlaying and not self.isRecording:
             self.play()
-        self._dataMapper.submit()
+        # submit the data directly
+        index = self._model.mappingIndex(Mappings.recordingIndex)
+        value = self.ui.RecordingIndex.value()
+        self._model.setData(index, value)
+    
+    def timeSliderValueChanged(self):
+        index = self._model.mappingIndex(Mappings.curTime)
+        value = self.ui.TimeSlider.value()
+        self._model.setData(index, value)
     
     def updateIsPlaying(self, isPlaying):
         # record button state
@@ -369,11 +411,11 @@ class TimeSlider(QWidget):
         # enable/disable controls
         setVisuallyEnabled(self.ui.PlayBtn, not isPlaying)
         setVisuallyEnabled(self.ui.NewBtn, not isPlaying)
+        setVisuallyEnabled(self.ui.AudioCheck, not isPlaying)
         setVisuallyEnabled(self.ui.RecordingName, not isPlaying)
         setVisuallyEnabled(self.ui.RecordingImageCount, not isPlaying)
         setVisuallyEnabled(self.ui.RecordingImageCountLabel, not isPlaying)
         setVisuallyEnabled(self.ui.RecordingDurationDisplay, not isPlaying)
-        self._dataMapper.submit()
     
     def updateIsRecording(self, isRecording):
         # bg color
@@ -381,9 +423,7 @@ class TimeSlider(QWidget):
         self.ui.MainFrame.setStyleSheet(style)
         # enable/disable controls
         self.ui.TimeSlider.setEnabled(not isRecording)
-        setVisuallyEnabled(self.ui.AudioCheck, not isRecording)
         setVisuallyEnabled(self.ui.RecordingIndex, not isRecording)
-        self._dataMapper.submit()
     
     def recordBtnAction(self):
         if self.isRecording or self.isPlaying:
@@ -391,26 +431,35 @@ class TimeSlider(QWidget):
         else:
             self.record()
     
-    @property
-    def isRecording(self):
-        return self.ui.IsRecordingCheck.checkState() == Qt.Checked
     
-    @property
-    def isPlaying(self):
+    def getIsRecording(self):
+        return self.ui.IsRecordingCheck.checkState() == Qt.Checked
+    def setIsRecording(self, value):
+        self.ui.IsRecordingCheck.setCheckState(Qt.Checked if value else Qt.Unchecked)
+        index = self._model.mappingIndex(Mappings.isRecording)
+        self._model.setData(index, value)
+    isRecording = property(getIsRecording, setIsRecording)
+    
+    def getIsPlaying(self):
         return self.ui.IsPlayingCheck.checkState() == Qt.Checked
+    def setIsPlaying(self, value):
+        self.ui.IsPlayingCheck.setCheckState(Qt.Checked if value else Qt.Unchecked)
+        index = self._model.mappingIndex(Mappings.isPlaying)
+        self._model.setData(index, value)
+    isPlaying = property(getIsPlaying, setIsPlaying)
     
     def record(self):
-        self.ui.IsRecordingCheck.setCheckState(Qt.Checked)
+        self.isRecording = True
         self.play()
     
     def play(self, time=0):
-        self.ui.IsPlayingCheck.setCheckState(Qt.Checked)
+        self.isPlaying = True
         self.time.restart()
         self.timer.start(self.timerInterval)
     
     def stop(self):
-        self.ui.IsPlayingCheck.setCheckState(Qt.Unchecked)
-        self.ui.IsRecordingCheck.setCheckState(Qt.Unchecked)
+        self.isRecording = False
+        self.isPlaying = False
         self.timer.stop()
     
     def togglePlayback(self):
@@ -437,7 +486,7 @@ class TimeSlider(QWidget):
         if not self.isRecording and frames >= self._model.recordingDuration:
             # reached the end of playback
             self.stop()
-        self._dataMapper.submit()
+        self.timeSliderValueChanged()
     
     def setModel(self, model):
         self._model = model
@@ -448,7 +497,9 @@ class TimeSlider(QWidget):
         self._dataMapper.addMapping(self.ui.RecordingImageCount, Mappings.recordingImageCount, 'text')
         self._dataMapper.addMapping(self.ui.RecordingDurationDisplay, Mappings.recordingDurationDisplay, 'text')
         self._dataMapper.addMapping(self, Mappings.recordingDuration, 'sliderMaximum')
+        self._dataMapper.addMapping(self.ui.AudioCheck, Mappings.recordAudio, 'checked')
         self._dataMapper.addMapping(self.ui.IsRecordingCheck, Mappings.isRecording, 'checked')
+        self._dataMapper.addMapping(self.ui.IsPlayingCheck, Mappings.isPlaying, 'checked')
         self._dataMapper.addMapping(self.ui.TimeSlider, Mappings.curTime, 'sliderPosition')
         self._dataMapper.addMapping(self.ui.TimeDisplay, Mappings.timeDisplay, 'text')
         self._dataMapper.toFirst()
@@ -500,206 +551,6 @@ class StoryTimeControl(object):
                 with open(path, 'w') as exportFile:
                     exportFile.write(FcpXml(**fcpkw).getStr())
                 self.ctl_make_audio_path()
-                
-    def ctl_make_audio_path(self):
-        """Set the audio path for a new file"""
-        imagePath = self.images.get()[0]
-        dirname = os.path.dirname(imagePath) + '/'
-        dirname = os.path.join(dirname, 'audio')
-        if os.path.exists(dirname):
-            #filename = utils.get_latest_version(dirname)
-            filename = dirname
-            if not filename:
-                filename = self.ctl_get_audio_path_name(filename)
-        else:
-            os.mkdir(dirname)
-            filename = self.ctl_get_audio_path_name(filename)
-        self.audioPath.set(filename)
-        
-    def ctl_get_audio_path_name(self, path):
-        """Return the base audio filename corresponding to the given path"""
-        fullbase = os.path.basename(path)
-        base = fullbase.split('.')[0]
-        path = '{0}Audio.wav'.format(base)
-        return path
-    
-    # Playback and Recording Functions
-    # --------------------------------
-    
-    def ctl_toggle_record(self):
-        if len(self.images.get()) > 0:
-            if not (self.recording.get() == self.BUTTON_STATES.DISABLED):
-                self.recording.set(not self.recording.get())
-                if self.recording.get() == self.BUTTON_STATES.ON:
-                    self.timecode.set(self.countdownms.get())
-                    self.view_start_disp_timer()
-                    if self.recordAudio.get():
-                        self.audioHandler.start_recording()
-                    self.curFrame.set(1)
-                    self.curImgFrame.set(1)
-                    self.timing_data.set([])
-                    if self.recordTiming.get():
-                        self.view_update_timer()
-                    else:
-                    	# changed to timing_data, starts at first     
-                    	self.view_start_timer(self.timing_data.get()[self.curFrame.get() - 1]['timing'])
-                    self.startFrame.set(self.curFrame.get())
-                    self.playing.set(self.BUTTON_STATES.DISABLED)
-                else:
-                    self.ctl_stop()
-    
-    def ctl_toggle_play(self):
-        if len(self.images.get()) > 0:
-            if not (self.playing.get() == self.BUTTON_STATES.DISABLED):
-                self.playing.set(not self.playing.get())
-                if self.playing.get() == self.BUTTON_STATES.ON:
-                    self.timecode.set(0)
-                    self.view_start_disp_timer()
-                    self.audioHandler.start_playing()
-                    self.curFrame.set(1)
-                    self.curImgFrame.set(1)
-                    self.view_start_timer(self.timing_data.get()[self.curFrame.get() - 1]['timing'])
-                    self.startFrame.set(self.curFrame.get())
-                    self.recording.set(self.BUTTON_STATES.DISABLED)
-                else:
-                    self.ctl_stop()
-        
-    def ctl_goto_recframe(self, frame):
-        """Go to the given frame in timing_data"""
-        if len(self.timing_data.get()) > 0:
-            self.curFrame.set(frame)
-            self.curImgFrame.set(self.timing_data.get()[frame-1]['imageNum'])
-    
-    def ctl_goto_imgframe(self, frame):
-        """Go to the given frame from images"""
-        if len(self.images.get()) > 0:
-            self.curImgFrame.set(frame)
-    
-    def ctl_inc_frame(self):
-        """Increment the current frame"""
-        if not len(self.images.get()) > 0 :
-            return
-        if self.curFrame.get() == len(self.timing_data.get()) and self.recording.get() != self.BUTTON_STATES.ON:
-            self.ctl_stop()
-        elif self.recording.get() == self.BUTTON_STATES.ON and self.recordTiming.get():
-            self.ctl_record_frame()
-        if self.loop.get() and self.curImgFrame.get() == len(self.images.get()):
-            self.curImgFrame.set(1)
-            return
-        self.curImgFrame.set(self.curImgFrame.get() + 1)
-    
-    def ctl_dec_frame(self):
-        """Decrement the current frame"""
-        if not len(self.images.get()) > 0 :
-            return
-        if self.recording.get() == self.BUTTON_STATES.ON and self.recordTiming.get():
-            self.ctl_record_frame()
-        if self.loop.get() and self.curImgFrame.get() == 1:
-            self.curImgFrame.set(len(self.images.get()))
-            return
-        self.curImgFrame.set(self.curImgFrame.get() - 1)
-    
-    def ctl_record_frame(self):
-    	"""
-    	Record the current frame with the current time.
-    	Gets called on inc and dec when recording.
-    	Adds a dict object to the data list
-    	eg. [{'image':'currentImage.jpg', 'time':<currentTime>}, ...]
-    	"""
-    	self.timing_data.get().append({'image':self.images.get()[self.curImgFrame.get() - 1],
-    	   'timing':self.view_update_timer(), 'imageNum':(self.curImgFrame.get() -1)})
-        
-    def ctl_stop(self):
-        """Stop playback and recording"""
-        if self.recording.get() == self.BUTTON_STATES.ON:
-            self.ctl_record_frame()
-            self.ui.recSlider.setRange(1,len(self.timing_data.get()))
-        self.recording.set(self.BUTTON_STATES.OFF)
-        self.playing.set(self.BUTTON_STATES.OFF)
-        self.audioHandler.stop_recording()
-        self.audioHandler.stop_playing()
-        self.view_stop_disp_timer()
-        
-    def ctl_update_playback(self):
-        """Whilst playing, increment the frame """
-        if self.curFrame.get() == len(self.timing_data.get()):
-            self.ctl_stop()
-            return
-        elif (self.playing.get() == self.BUTTON_STATES.ON) or (self.recording.get() == self.BUTTON_STATES.ON and not self.recordTiming.get()):
-            self.curFrame.set(self.curFrame.get() + 1)
-            #self.curImgFrame.set(self.images.get().index(self.timing_data.get()[self.curFrame.get() - 1]['image']))
-            self.view_start_timer(self.timing_data.get()[self.curFrame.get() - 1]['timing'])
-            
-    def ctl_update_timecode(self, value):
-        if self.countdownms.get() > 0 and self.recording.get() == self.BUTTON_STATES.ON:
-            countdownTime = self.countdownms.get() - value
-            if countdownTime < 0:
-                countdownTime = 0
-            self.timecode.set(countdownTime)
-        else:
-            self.timecode.set(value)
-                
-    # Options Functions
-    # -----------------
-    
-    def ctl_change_fps(self, index):
-        self.fpsIndex.set(index)
-        if self.fpsIndex.get() == len(self.fpsOptions.get()) - 1:
-            newFps = self.view_query_custom_fps()
-            self.fpsOptions.get()[-1][0] = 'Custom ({0} fps)...'.format(newFps)
-            self.fpsOptions.get()[-1][1] = newFps
-            self.fpsOptions.set(self.fpsOptions.get())
-        self.fps.set(self.fpsOptions.get()[self.fpsIndex.get()][1])
-                
-    def ctl_toggle_record_timing(self, value):
-        self.recordTiming.set(value)
-        if not self.recordTiming.get() and not self.recordAudio.get():
-            self.recording.set(self.BUTTON_STATES.DISABLED)
-        else:
-            self.recording.set(self.BUTTON_STATES.OFF)
-    
-    def ctl_toggle_loop(self, value):
-        self.loop.set(value)
-    
-    def ctl_toggle_record_audio(self, value):
-        self.recordAudio.set(value)
-        if not self.recordTiming.get() and not self.recordAudio.get():
-            self.recording.set(self.BUTTON_STATES.DISABLED)
-        else:
-            self.recording.set(self.BUTTON_STATES.OFF)
-            
-    def ctl_set_recording_countdown(self):
-        countdownTime = self.view_query_countdown_time()
-        if countdownTime is not None:
-            self.countdown.set(countdownTime)
-            self.timecode.set(self.countdownms.get())
-            
-            
-    # Specialty Functions
-    # -------------------
-    
-    def create_frames_list(self):
-        """Return a list of image times converted to the current fps"""
-        incFrames = self.timing_data.get()[:]
-        total = 0
-        for i in range(0, len(self.timing_data.get())):
-            total = total + self.timing_data.get()[i]['timing']
-            incFrames[i] = int(total * self.fps.get() / 1000)
-        fpsFrames = incFrames[:]
-        #We can ignore the value at index 0 because it's already the
-        #correct value.
-        for i in range(1, len(self.timing_data.get())):
-            fpsFrames[i] = incFrames[i] - incFrames[i-1]
-            if fpsFrames[i] < 1:
-                fpsFrames[i] = 1
-        return fpsFrames
-    
-    def filter_image_paths(self, paths):
-        """
-        Remove paths with invalid file extensions and return the
-        resulting list.
-        """
-        return [path for path in paths if os.path.splitext(path)[1] in self.view_get_image_formats()]
     
     def to_xml(self):
         """Create a StoryTime XML string from the current application state"""

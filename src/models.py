@@ -9,6 +9,7 @@ from data import *
 from utils import enum, get_timecode
 from PySide.QtCore import *
 from PySide.QtGui import *
+import audio
 import logging
 import math
 import os
@@ -17,7 +18,7 @@ LOG = logging.getLogger('storyTime.models')
 
 # TODO: cluster mappings that affect each other or create event pool presets
 Mappings = enum(
-    'isRecording', 'isPlaying', 'fps', 'curTime', 'timeDisplay', 'isTimeDisplayFrames',
+    'isRecording', 'isPlaying', 'fps', 'curTime', 'timeDisplay', 'isTimeDisplayFrames', 'recordAudio', 'audioInputDeviceIndex', 'audioOutputDeviceIndex',
     'imageCount', 'curImageIndex', 'curImageIndexLabel', 'curImagePath', 'curImage', 'prevImage', 'nextImage',
     'recordingIndex', 'recordingName', 'recordingFps', 'recordingDuration', 'recordingDurationDisplay', 'recordingImageCount',
     'end',
@@ -100,6 +101,10 @@ class StoryTimeModel(QAbstractItemModel):
         self.isTimeDisplayFrames = False
         # current time of the playback timeline in frames
         self.curTime = 0
+        # whether to record audio for the current recording or not
+        self.recordAudio = True
+        self.audioInputDeviceIndex = audio.defaultInputDeviceIndex()
+        self.audioOutputDeviceIndex = audio.defaultOutputDeviceIndex()
         
         
         # all recording collections
@@ -170,6 +175,9 @@ class StoryTimeModel(QAbstractItemModel):
     def curAudioRecording(self):
         return self.curRecording.audio
     
+    def getAudioPath(self, name):
+        return os.path.join(os.path.expanduser('~'), name)
+    
     @property
     def recordingFps(self):
         return self.curFrameRecording.fps
@@ -184,7 +192,7 @@ class StoryTimeModel(QAbstractItemModel):
             # return the current time ceilinged to the nearest half minute
             minuteFrames = self.recordingFps * 30
             minutes = math.floor(float(self.curTime) / minuteFrames) + 2
-            return minutes * minuteFrames
+            return int(minutes * minuteFrames)
         else:
             ad = self.secondsToFrames(self.curAudioRecording.duration)
             fd = self.curFrameRecording.duration
@@ -213,6 +221,8 @@ class StoryTimeModel(QAbstractItemModel):
     def newRecording(self):
         new = RecordingCollection()
         new.name = 'Recording {0}'.format(self.recordingCount + 1)
+        new.audio.inputDeviceIndex = self.audioInputDeviceIndex
+        new.audio.outputDeviceIndex = self.audioOutputDeviceIndex
         self.recordings.append(new)
         self.loadRecording(self.recordingCount - 1)
     
@@ -225,12 +235,12 @@ class StoryTimeModel(QAbstractItemModel):
     
     def recordFrame(self, index):
         """ Record the image at the given index for the current time """
-        LOG.debug('Recording image at index: {0} ({1})'.format(index, self.images[index]))
+        if index < 0 or index > len(self.images):
+            return
         recordingIndex = self.curFrameRecording.getIndex(self.curTime)
         if recordingIndex is None:
             # the first frame
             recordingIndex = 0
-            LOG.debug('this is the first frame')
         else:
             # insert after current frame
             recordingIndex += 1
@@ -238,7 +248,7 @@ class StoryTimeModel(QAbstractItemModel):
         outTime = self.curFrameRecording.outTime(recordingIndex - 1)
         image = self.images[index]
         duration = self.curTime - outTime
-        LOG.debug('outTime {0}, duration {1}'.format(outTime, duration))
+        LOG.debug('{1:>4} - {2:<4}: {0}'.format(os.path.basename(image), outTime, outTime + duration))
         # if duration is 0, check and replace the frame at recordingIndex
         self.curFrameRecording.insert(recordingIndex, image, duration)
     
@@ -316,10 +326,12 @@ class StoryTimeModel(QAbstractItemModel):
         if frame is not None:
             self.imageCollection.seekToImage(frame.image)
             self.imageDataChanged()
+            self.recordingDataChanged()
     
     def loadImage(self, index):
         self.imageCollection.seek = index
         self.imageDataChanged()
+        self.recordingDataChanged()
     
     
     # qt model methods
@@ -343,40 +355,86 @@ class StoryTimeModel(QAbstractItemModel):
     
     
     def setData(self, index, value, role = Qt.EditRole):
-        #LOG.debug('mapping={0} value={1}'.format(Mappings.names[index.column()], value))
+        """
+        Receive and apply data input from the view/controllers. The model is updated
+        appropriately based on what data is changed and to what values.
+        """
         
         m = index.column()
         
-        if m == Mappings.curImageIndex and self.curImageIndex != value:
+        # stop if the value is not different
+        if hasattr(self, Mappings.names[m]):
+            # loose equality
+            if str(getattr(self, Mappings.names[m])) == str(value):
+                return False
+        
+        if m not in [Mappings.curTime]:
+            LOG.debug('{0:>25} = {1!r} -> {2!r}'.format(Mappings.names[index.column()], getattr(self, Mappings.names[m]), value))
+        
+        if m == Mappings.curImageIndex:
             # only updates if the new index is different
             if self.isRecording:
                 self.recordCurrentFrame()
             self.loadImage(value)
             return True
+            
         elif m == Mappings.curTime:
             self.curTime = value
             if not self.isRecording:
                 self.loadImageAtTime(value)
             self.timeDataChanged()
             return True
+            
+        elif m == Mappings.recordAudio:
+            self.recordAudio = value
+            self.mappingChanged(m)
         
-        elif m == Mappings.isRecording and self.isRecording != value:
+        elif m == Mappings.audioInputDeviceIndex:
+            self.audioInputDeviceIndex = value
+            self.curAudioRecording.inputDeviceIndex = self.audioInputDeviceIndex
+            self.mappingChanged(m)
+        
+        elif m == Mappings.isRecording:
             self.isRecording = value
             if not self.isRecording:
                 # recording has just stopped. record the last frame
                 self.recordCurrentFrame()
-            elif len(self.curFrameRecording) != 0:
-                # start a new recording cause this ones already been used
-                self.newRecording()
-                self.curTime = 0
-                self.timeDataChanged()
+                if self.recordAudio:
+                    self.curAudioRecording.stop()
+                    self.curAudioRecording.save(self.getAudioPath(self.curRecording.name))
+            else:
+                if len(self.curFrameRecording) != 0:
+                    # start a new recording cause this ones already been used
+                    self.newRecording()
+                if self.recordAudio:
+                    self.curAudioRecording.record()
             self.recordingDataChanged()
             return True
+        
+        elif m == Mappings.isPlaying:
+            self.isPlaying = value
+            if self.isPlaying:
+                if self.recordAudio and self.curAudioRecording.hasRecording:
+                    self.curAudioRecording.stop()
+                    self.curAudioRecording.play()
+            else:
+                self.curAudioRecording.stop()
+            
         elif m == Mappings.recordingIndex:
+            if self.recordAudio and self.isPlaying:
+                self.curAudioRecording.stop()
             self.recordingIndex = max(min(value, self.recordingCount - 1), 0)
+            if self.recordAudio and self.isPlaying:
+                self.curAudioRecording.play()
             self.recordingDataChanged()
             return True
+            
         elif m == Mappings.recordingName:
+            # move the current audio file, if one exists
+            if self.curAudioRecording.hasRecording:
+                if os.path.isfile(self.curAudioRecording.filename):
+                    os.remove(self.curAudioRecording.filename)
+                self.curAudioRecording.save(self.getAudioPath(value))
             self.curRecording.name = value
             self.mappingChanged(Mappings.recordingName)
             return True

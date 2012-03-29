@@ -13,7 +13,7 @@ import os
 import re
 import xml.dom.minidom as minidom
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('storyTime.fcpxml')
 
 
 #Ugly, ugly, lazy hack to format XML correctly

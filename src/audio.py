@@ -15,6 +15,58 @@ import wave
 
 LOG = logging.getLogger('storyTime.audio')
 
+__all__ = [
+    'devices',
+    'defaultInputDeviceIndex',
+    'defaultInputDeviceIndex',
+    'inputDevices',
+    'outputDevices',
+    'isInputDevice',
+    'isOutputDevice',
+    'getDevice',
+    'AudioRecording',
+    'AudioHandler',
+    'AudioRecorder',
+    'AudioPlayer',
+]
+
+
+def devices():
+    p = pyaudio.PyAudio()
+    count = p.get_device_count()
+    devices = [p.get_device_info_by_index(i) for i in range(count)]
+    p.terminate()
+    return devices
+
+def defaultInputDeviceIndex():
+    p = pyaudio.PyAudio()
+    device = p.get_default_input_device_info()
+    p.terminate()
+    return device['index']
+
+def defaultOutputDeviceIndex():
+    p = pyaudio.PyAudio()
+    device = p.get_default_output_device_info()
+    p.terminate()
+    return device['index']
+
+def inputDevices():
+    return [d for d in devices() if isInputDevice(d)]
+    
+def outputDevices():
+    return [d for d in devices() if isOutputDevice(d)]
+
+def isInputDevice(d):
+    return d['maxInputChannels'] > 0
+
+def isOutputDevice(d):
+    return d['maxOutputChannels'] > 0
+
+def getDevice(index):
+    for d in devices():
+        if d['index'] == index:
+            return d
+
 
 class AudioRecording(object):
     """
@@ -25,10 +77,16 @@ class AudioRecording(object):
     def __init__(self):
         self.filename = None
         self.duration = 0
+        self.inputDeviceIndex = defaultInputDeviceIndex()
+        self.outputDeviceIndex = defaultOutputDeviceIndex()
         self._hasRecording = False
         self._tempFile = None
         self._recorder = None
         self._player = None
+    
+    def __del__(self):
+        if self.isRecording or self.isPlaying:
+            self.stop()
     
     @property
     def tempFile(self):
@@ -66,6 +124,7 @@ class AudioRecording(object):
         if self.isPlaying:
             self.stop()
         self._recorder = AudioRecorder(self.tempFile)
+        self._recorder.deviceIndex = self.inputDeviceIndex
         self._recorder.start()
     
     def play(self):
@@ -78,6 +137,7 @@ class AudioRecording(object):
         if self.isPlaying:
             self.stop()
         self._player = AudioPlayer(self.tempFile)
+        self._player.deviceIndex = self.outputDeviceIndex
         self._player.start()
     
     def stop(self):
@@ -108,7 +168,7 @@ class AudioRecording(object):
         return self.filename
 
 
-class AudioDevice(threading.Thread):
+class AudioHandler(threading.Thread):
     def __init__(self, filename=None):
         threading.Thread.__init__(self)
         self.filename = filename
@@ -120,23 +180,19 @@ class AudioDevice(threading.Thread):
     
     @property
     def devices(self):
-        count = self.pyaudio.get_device_count()
-        devices = [self.pyaudio.get_device_info_by_index(i) for i in range(count)]
-        return [d for d in devices if self.isValidDevice(d)]
-
-    @property
-    def deviceIndeces(self):
-        return [d['index'] for d in self.devices]
-
+        raise NotImplementedError
+    
     @property
     def device(self):
         """The current device info"""
-        return self.getDevice(self.deviceIndex)
+        return getDevice(self.deviceIndex)
 
     @property
     def deviceName(self):
         """The current device's name"""
-        return self.getDeviceName(self.deviceIndex)
+        d = self.device
+        if d is not None:
+            return d['name']
 
     def getDeviceIndex(self):
         return self._deviceIndex
@@ -149,26 +205,10 @@ class AudioDevice(threading.Thread):
         return index in [d['index'] for d in self.devices]
     
     def getDefaultDeviceIndex(self):
-        return self.getDefaultDevice()['index']
-
-    def getDevice(self, index):
-        for d in self.devices:
-            if d['index'] == index:
-                return d
-
-    def getDeviceName(self, index):
-        d = self.getDevice(index)
-        if d is not None:
-            return d['name']
-
-    def isValidDevice(self, device):
-        raise NotImplementedError
-
-    def getDefaultDevice(self):
         raise NotImplementedError
 
 
-class AudioRecorder(AudioDevice):
+class AudioRecorder(AudioHandler):
     def __init__(self, filename=None):
         super(AudioRecorder, self).__init__(filename)
         self._isRecording = False
@@ -179,11 +219,12 @@ class AudioRecorder(AudioDevice):
     def isRecording(self):
         return self._isRecording
     
-    def isValidDevice(self, device):
-        return device['maxInputChannels'] > 0
+    @property
+    def devices(self):
+        return inputDevices()
 
-    def getDefaultDevice(self):
-        return self.pyaudio.get_default_input_device_info()
+    def getDefaultDeviceIndex(self):
+        return defaultInputDeviceIndex()
     
     def getStreamOpts(self):
         device = self.device
@@ -198,18 +239,17 @@ class AudioRecorder(AudioDevice):
         return opts
     
     def run(self):
-        LOG.debug('recording audio...')
         self._isRecording = True
         opts = self.getStreamOpts()
         data = self.recordData(opts)
         self.writeData(data, opts)
-        LOG.debug('finished recording. {0}'.format(self.filename))
+        LOG.debug('recorded audio: {0}'.format(self.filename))
     
     def recordData(self, opts):
         # create stream and start recording
         stream = self.pyaudio.open(**opts)
         self.allSound = []
-        while self._isRecording:
+        while self._isRecording or len(self.allSound) == 0:
             data = stream.read(1024)
             self.allSound.append(data)
         
@@ -232,7 +272,7 @@ class AudioRecorder(AudioDevice):
 
 
 
-class AudioPlayer(AudioDevice):    
+class AudioPlayer(AudioHandler):    
     def __init__(self, filename=None):
         super(AudioPlayer, self).__init__(filename)
         self._isPlaying = False
@@ -241,11 +281,12 @@ class AudioPlayer(AudioDevice):
     def isPlaying(self):
         return self._isPlaying
     
-    def isValidDevice(self, device):
-        return device['maxOutputChannels'] > 0
+    @property
+    def devices(self):
+        return outputDevices()
 
-    def getDefaultDevice(self):
-        return self.pyaudio.get_default_output_device_info()
+    def getDefaultDeviceIndex(self):
+        return defaultOutputDeviceIndex()
     
     def getStreamOpts(self, wav):
         device = self.device
@@ -271,7 +312,6 @@ class AudioPlayer(AudioDevice):
             data = wav.readframes(chunk)
         stream.close()
         wav.close()
-        LOG.debug('audio playback ended')
     
     def stop(self):
         self._isPlaying = False

@@ -100,7 +100,7 @@
      <x>0</x>
      <y>0</y>
      <width>921</width>
-     <height>25</height>
+     <height>27</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -138,7 +138,13 @@
      <addaction name="action60"/>
      <addaction name="actionCustom_2"/>
     </widget>
+    <widget class="QMenu" name="menuAudioInputDevices">
+     <property name="title">
+      <string>Audio Input</string>
+     </property>
+    </widget>
     <addaction name="menuFPS"/>
+    <addaction name="menuAudioInputDevices"/>
     <addaction name="actionOSMappings"/>
    </widget>
    <addaction name="menuFile"/>
@@ -286,6 +292,11 @@
   <action name="actionAsdf">
    <property name="text">
     <string>asdf</string>
+   </property>
+  </action>
+  <action name="actionBuilt_In_Microphone">
+   <property name="text">
+    <string>Built-In Microphone</string>
    </property>
   </action>
  </widget>
