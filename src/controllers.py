@@ -175,14 +175,26 @@ class StoryTimeWindow(object):
         self.ui.menuAudioInputDevices.clear()
         self.ui.audioInputGroup = QActionGroup(self.ui)
         self.ui.audioInputGroup.triggered.connect(self.audioInputGroupTriggered)
-        for d in audio.inputDevices():
-            action = QAction(d['name'], self.ui)
-            action.setData(d['index'])
-            action.setCheckable(True)
-            if d['index'] == self._model.audioInputDeviceIndex:
-                action.setChecked(True)
+        devices = audio.inputDevices()
+        if len(devices) > 0:
+            for d in devices:
+                action = QAction(d['name'], self.ui)
+                action.setData(d['index'])
+                action.setCheckable(True)
+                if d['index'] == self._model.audioInputDeviceIndex:
+                    action.setChecked(True)
+                self.ui.menuAudioInputDevices.addAction(action)
+                self.ui.audioInputGroup.addAction(action)
+        else:
+            # no input devices found
+            action = QAction('(No Input Devices)', self.ui)
+            action.setEnabled(False)
             self.ui.menuAudioInputDevices.addAction(action)
-            self.ui.audioInputGroup.addAction(action)
+        # insert separator and refresh button
+        self.ui.menuAudioInputDevices.addSeparator()
+        action = QAction('Refresh', self.ui)
+        action.triggered.connect(self.buildAudioInputsMenu)
+        self.ui.menuAudioInputDevices.addAction(action)
     
     def updateAudioInputsMenu(self):
         for action in self.ui.audioInputGroup.actions():
@@ -377,6 +389,7 @@ class TimeSlider(QWidget):
         self.ui.TimeSlider.valueChanged.connect(self.timeSliderValueChanged)
         self.ui.IsPlayingCheck.toggled.connect(self.updateIsPlaying)
         self.ui.IsRecordingCheck.toggled.connect(self.updateIsRecording)
+        self.ui.AudioCheck.toggled.connect(self.audioCheckToggled)
         self.ui.PlayBtn.clicked.connect(self.play)
         self.ui.RecordBtn.clicked.connect(self.recordBtnAction)
         self.ui.NewBtn.clicked.connect(StoryTimeWindow.instance().newRecording)
@@ -390,6 +403,9 @@ class TimeSlider(QWidget):
     def getSliderMaximum(self):
         return self.ui.TimeSlider.maximum()
     sliderMaximum = Property('int', getSliderMaximum, setSliderMaximum)
+    
+    def audioCheckToggled(self):
+        self._dataMapper.submit()
     
     def recordingIndexChanged(self):
         if self.isPlaying and not self.isRecording:
@@ -497,7 +513,7 @@ class TimeSlider(QWidget):
         self._dataMapper.addMapping(self.ui.RecordingImageCount, Mappings.recordingImageCount, 'text')
         self._dataMapper.addMapping(self.ui.RecordingDurationDisplay, Mappings.recordingDurationDisplay, 'text')
         self._dataMapper.addMapping(self, Mappings.recordingDuration, 'sliderMaximum')
-        self._dataMapper.addMapping(self.ui.AudioCheck, Mappings.recordAudio, 'checked')
+        self._dataMapper.addMapping(self.ui.AudioCheck, Mappings.audioEnabled, 'checked')
         self._dataMapper.addMapping(self.ui.IsRecordingCheck, Mappings.isRecording, 'checked')
         self._dataMapper.addMapping(self.ui.IsPlayingCheck, Mappings.isPlaying, 'checked')
         self._dataMapper.addMapping(self.ui.TimeSlider, Mappings.curTime, 'sliderPosition')

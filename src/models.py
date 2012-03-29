@@ -18,7 +18,7 @@ LOG = logging.getLogger('storyTime.models')
 
 # TODO: cluster mappings that affect each other or create event pool presets
 Mappings = enum(
-    'isRecording', 'isPlaying', 'fps', 'curTime', 'timeDisplay', 'isTimeDisplayFrames', 'recordAudio', 'audioInputDeviceIndex', 'audioOutputDeviceIndex',
+    'isRecording', 'isPlaying', 'fps', 'curTime', 'timeDisplay', 'isTimeDisplayFrames', 'audioEnabled', 'audioInputDeviceIndex', 'audioOutputDeviceIndex',
     'imageCount', 'curImageIndex', 'curImageIndexLabel', 'curImagePath', 'curImage', 'prevImage', 'nextImage',
     'recordingIndex', 'recordingName', 'recordingFps', 'recordingDuration', 'recordingDurationDisplay', 'recordingImageCount',
     'end',
@@ -102,7 +102,7 @@ class StoryTimeModel(QAbstractItemModel):
         # current time of the playback timeline in frames
         self.curTime = 0
         # whether to record audio for the current recording or not
-        self.recordAudio = True
+        self.audioEnabled = True
         self.audioInputDeviceIndex = audio.defaultInputDeviceIndex()
         self.audioOutputDeviceIndex = audio.defaultOutputDeviceIndex()
         
@@ -174,6 +174,16 @@ class StoryTimeModel(QAbstractItemModel):
     @property
     def curAudioRecording(self):
         return self.curRecording.audio
+    
+    def getAudioEnabled(self):
+        return self._audioEnabled
+    def setAudioEnabled(self, value):
+        if isinstance(value, bool):
+            # check to see if we are able to enable
+            self._audioEnabled = False
+            if len(audio.inputDevices()) > 0:
+                self._audioEnabled = value
+    audioEnabled = property(getAudioEnabled, setAudioEnabled)
     
     def getAudioPath(self, name):
         return os.path.join(os.path.expanduser('~'), name)
@@ -385,8 +395,11 @@ class StoryTimeModel(QAbstractItemModel):
             self.timeDataChanged()
             return True
             
-        elif m == Mappings.recordAudio:
-            self.recordAudio = value
+        elif m == Mappings.audioEnabled:
+            self.audioEnabled = value
+            # check to see if we should update our device index
+            if self.audioEnabled and self.audioInputDeviceIndex == -1:
+                self.audioInputDeviceIndex = audio.defaultInputDeviceIndex()
             self.mappingChanged(m)
         
         elif m == Mappings.audioInputDeviceIndex:
@@ -399,14 +412,14 @@ class StoryTimeModel(QAbstractItemModel):
             if not self.isRecording:
                 # recording has just stopped. record the last frame
                 self.recordCurrentFrame()
-                if self.recordAudio:
+                if self._audioEnabled:
                     self.curAudioRecording.stop()
                     self.curAudioRecording.save(self.getAudioPath(self.curRecording.name))
             else:
                 if len(self.curFrameRecording) != 0:
                     # start a new recording cause this ones already been used
                     self.newRecording()
-                if self.recordAudio:
+                if self._audioEnabled:
                     self.curAudioRecording.record()
             self.recordingDataChanged()
             return True
@@ -414,17 +427,17 @@ class StoryTimeModel(QAbstractItemModel):
         elif m == Mappings.isPlaying:
             self.isPlaying = value
             if self.isPlaying:
-                if self.recordAudio and self.curAudioRecording.hasRecording:
+                if self._audioEnabled and self.curAudioRecording.hasRecording:
                     self.curAudioRecording.stop()
                     self.curAudioRecording.play()
             else:
                 self.curAudioRecording.stop()
             
         elif m == Mappings.recordingIndex:
-            if self.recordAudio and self.isPlaying:
+            if self._audioEnabled and self.isPlaying:
                 self.curAudioRecording.stop()
             self.recordingIndex = max(min(value, self.recordingCount - 1), 0)
-            if self.recordAudio and self.isPlaying:
+            if self._audioEnabled and self.isPlaying:
                 self.curAudioRecording.play()
             self.recordingDataChanged()
             return True

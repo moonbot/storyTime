@@ -40,13 +40,19 @@ def devices():
 
 def defaultInputDeviceIndex():
     p = pyaudio.PyAudio()
-    device = p.get_default_input_device_info()
+    try:
+        device = p.get_default_input_device_info()
+    except IOError:
+        device = {'index':-1}
     p.terminate()
     return device['index']
 
 def defaultOutputDeviceIndex():
     p = pyaudio.PyAudio()
-    device = p.get_default_output_device_info()
+    try:
+        device = p.get_default_output_device_info()
+    except IOError:
+        device = {'index':-1}
     p.terminate()
     return device['index']
 
