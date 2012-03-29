@@ -246,24 +246,31 @@ class AudioPlayer(AudioDevice):
 
     def getDefaultDevice(self):
         return self.pyaudio.get_default_output_device_info()
-        
+    
+    def getStreamOpts(self, wav):
+        device = self.device
+        opts = {
+            'output_device_index':device['index'],
+            'channels':wav.getnchannels(),
+            'rate':wav.getframerate(),
+            'output':True,
+            'format':self.pyaudio.get_format_from_width(wav.getsampwidth()),
+        }
+        return opts
+    
     def run(self):
         LOG.debug('playing audio {0}'.format(self.filename))
         self._isPlaying = True
+        wav = wave.open(self.filename, 'rb')
+        opts = self.getStreamOpts(wav)
+        stream = self.pyaudio.open(**opts)
         chunk = 1024
-        wf = wave.open(self.filename, 'rb')
-        p = pyaudio.PyAudio()
-        stream = p.open(format = p.get_format_from_width(wf.getsampwidth()),
-                                  channels = wf.getnchannels(),
-                                  rate = wf.getframerate(),
-                                  output = True)
-        data = wf.readframes(chunk)
+        data = wav.readframes(chunk)
         while data != '' and self._isPlaying:
             stream.write(data)
-            data = wf.readframes(chunk)
+            data = wav.readframes(chunk)
         stream.close()
-        p.terminate()
-        wf.close()
+        wav.close()
         LOG.debug('audio playback ended')
     
     def stop(self):
