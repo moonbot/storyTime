@@ -190,6 +190,9 @@ class Frame(object):
     def setDuration(self, value):
         self._duration = max(1, int(value))
     duration = property(getDuration, setDuration)
+    
+    def serialize(self):
+        pass
 
 
 class VideoRecording(object):
@@ -202,6 +205,7 @@ class RecordingCollection(object):
     The main Story Time model creates a list of recording collections to
     associate frame timings with audio recordings.
     """
+    
     def __init__(self, name='Recording', frames=None, audio=None):
         self.name = name
         self.frames = frames if frames is not None else FrameRecording()
@@ -210,6 +214,16 @@ class RecordingCollection(object):
     
     def __repr__(self):
         return '<RecordingCollection {0!r} {1!r} {2!r}>'.format(self.name, self.frames, self.audio)
+    
+    
+    @staticmethod
+    def fromString(string):
+        """ Return a new RecordingCollection using the given string """
+        return RecordingCollection()
+    
+    def toString(self):
+        """ Return this RecordingCollection as a serialized string """
+        return
 
 
 class ImageCollection(object):

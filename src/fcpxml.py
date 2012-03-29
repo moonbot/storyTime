@@ -104,7 +104,7 @@ class FcpXml(object):
         self.settings['height'] = str(size[1])
         self.build()
         
-    def getStr(self):
+    def toString(self):
         return self.xml.toprettyxml()
             
     def build(self):

@@ -257,6 +257,9 @@ class StoryTimeWindow(object):
         LOG.debug('Opening story time file: {0}'.format(f))
     
     def saveRecording(self):
+        # TODO: will need to implement a 'lastSavedFilename' on the RecordingCollection or model,
+        #       then if self._model.currentFilename is not None:
+        #       call self._model.saveRecording()
         LOG.debug('Saving current recording where it was last saved.')
     
     def saveRecordingAs(self):
@@ -267,6 +270,7 @@ class StoryTimeWindow(object):
             filter='XML files (*.xml)',
         )
         LOG.debug('Saving story time file: {0}'.format(files[0]))
+        self._model.saveRecording(files[0])
     
     def importImages(self):
         caption = 'Import Image(s)'
@@ -279,9 +283,11 @@ class StoryTimeWindow(object):
             LOG.debug('Imported {0}'.format(files[0]))
     
     def exportForFCP(self):
+        # TODO: browse for a destination then call exportRecording on self._model
         LOG.debug('Exporting for FCP')
     
     def exportForPremiere(self):
+        # TODO: browse for a destination then call exportRecording on self._model
         LOG.debug('Exporting for Premiere')
 
 

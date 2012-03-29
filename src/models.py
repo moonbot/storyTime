@@ -8,7 +8,7 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 from data import *
 from PySide.QtCore import *
 from PySide.QtGui import *
-import audio, utils
+import audio, utils, fcpxml
 import logging
 import math
 import os
@@ -354,6 +354,41 @@ class StoryTimeModel(QAbstractItemModel):
         LOG.debug('Clearing cache {0}'.format(self.pixmapCache.count))
         self.pixmapCache.clear()
     
+    def toXml(self, platform='win'):
+        """
+        Export the current application state to a Final Cut Pro XML file.
+        
+        `caption` -- the caption of the file browsing dialog
+        `platform` -- the current platform for the export
+            mac = final cut
+            win = premiere
+        """
+        frameImages = [f.image for f in self.curFrameRecording.frames]
+        frameDurations = [f.duration for f in self.curFrameRecording.frames]
+        
+        if len(self.curFrameRecording) > 0:
+            fcpkw = {
+                'name':self.recordingName,
+                'images':zip(frameImages, frameDurations),
+                'audioPath':self.curAudioRecording.filename,
+                'fps':self.recordingFps,
+                'ntsc':(self.recordingFps % 30 == 0),
+                'OS':platform,
+            }
+            return fcpxml.FcpXml(**fcpkw).toString()
+    
+    def exportRecording(self, filename, platform='win'):
+        xml = self.toXml(platform)
+        # TODO: write the xml to the given filename
+    
+    def saveRecording(self, filename=None):
+        # TODO: serialize self.curRecording (the RecordingCollection) and save to file
+        # data = self.curRecording.serialize()
+        # etc...
+        
+        # if filename is none should try to use lastSavedFilename for the current recording collection
+        pass
+    
     @property
     def imageCount(self):
         return len(self.images)
@@ -477,6 +512,9 @@ class StoryTimeModel(QAbstractItemModel):
                 if self._audioEnabled:
                     self.curAudioRecording.stop()
                     self.curAudioRecording.save(self.getAudioPath(self.curRecording.name))
+                
+                # print some xml
+                LOG.debug(self.toXml())
             else:
                 if len(self.curFrameRecording) != 0:
                     # start a new recording cause this ones already been used
