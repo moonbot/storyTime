@@ -12,7 +12,7 @@ from PySide.QtUiTools import QUiLoader
 import logging
 import os
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('storyTime.controllers')
 
 def loadUi(path, parent=None, attach=False):
     loader = QUiLoader()

@@ -13,7 +13,7 @@ import logging
 import math
 import os
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('storyTime.models')
 
 # TODO: cluster mappings that affect each other or create event pool presets
 Mappings = enum(
@@ -226,7 +226,7 @@ class StoryTimeModel(QAbstractItemModel):
     def recordFrame(self, index):
         """ Record the image at the given index for the current time """
         LOG.debug('Recording image at index: {0} ({1})'.format(index, self.images[index]))
-        recordingIndex = self.curFrameRecording.get_index(self.curTime)
+        recordingIndex = self.curFrameRecording.getIndex(self.curTime)
         if recordingIndex is None:
             # the first frame
             recordingIndex = 0
@@ -235,7 +235,7 @@ class StoryTimeModel(QAbstractItemModel):
             # insert after current frame
             recordingIndex += 1
         # get out time of the previous frame
-        outTime = self.curFrameRecording.out_time(recordingIndex - 1)
+        outTime = self.curFrameRecording.outTime(recordingIndex - 1)
         image = self.images[index]
         duration = self.curTime - outTime
         LOG.debug('outTime {0}, duration {1}'.format(outTime, duration))
@@ -263,10 +263,10 @@ class StoryTimeModel(QAbstractItemModel):
                 # TODO: load the xml
                 pass
             elif os.path.isdir(path):
-                self.imageCollection.load_dir(path)
+                self.imageCollection.loadDir(path)
             else:
                 # TODO: replace this with loading the image sequence
-                self.imageCollection.load_dir(os.path.dirname(path))
+                self.imageCollection.loadDir(os.path.dirname(path))
         # emit signals
         self.imageDataChanged()
     
@@ -312,7 +312,7 @@ class StoryTimeModel(QAbstractItemModel):
         return self.pixmapCache.getPixmap(self.imageCollection.next(seek=False))
     
     def loadImageAtTime(self, time):
-        frame = self.curFrameRecording.get_frame(time)
+        frame = self.curFrameRecording.getFrame(time)
         if frame is not None:
             self.imageCollection.seekToImage(frame.image)
             self.imageDataChanged()

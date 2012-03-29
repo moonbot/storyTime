@@ -7,11 +7,12 @@ Created by Bohdon Sayre on 2012-03-26.
 Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
+from audio import AudioRecording
 import copy
 import logging
 import os
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('storyTime.data')
 
 
 FPS_OPTIONS = {
@@ -96,29 +97,24 @@ class FrameRecording(object):
         f = Frame(image, duration)
         self._frames.insert(index, f)
     
-    def insert_recording(self, other):
-        if isinstance(other, FrameRecording):
-            new = copy.deepcopy(self)
-        raise TypeError
-    
     def pop(self, index):
         if index < len(self.frames):
             return self._frames.pop(index)
     
     
-    def relative_time(self, time):
+    def relativeTime(self, time):
         """ Convert the given absolute time to a time relative to start """
         return time - self.start
     
-    def absolute_time(self, time):
+    def absoluteTime(self, time):
         """ Convert the given relative time to an absolute time """
         return time + self.start
     
-    def get_index(self, time):
+    def getIndex(self, time):
         """ Return the index of the frame at the given time """
         if len(self) == 0:
             return
-        rtime = self.relative_time(time)
+        rtime = self.relativeTime(time)
         if rtime < 0:
             return 0
         elif rtime >= self.duration:
@@ -129,23 +125,23 @@ class FrameRecording(object):
             if rtime < t:
                 return i
     
-    def get_frame(self, time):
+    def getFrame(self, time):
         """ Return the frame at the given time """
-        index = self.get_index(time)
+        index = self.getIndex(time)
         if index is not None:
-            return self.frames[self.get_index(time)]
+            return self.frames[self.getIndex(time)]
         
-    def in_time(self, index):
+    def inTime(self, index):
         if index < len(self):
             rtime = sum([f.duration for f in self.frames[:index]])
-            return self.absolute_time(rtime)
-        return self.absolute_time(0)
+            return self.absoluteTime(rtime)
+        return self.absoluteTime(0)
     
-    def out_time(self, index):
+    def outTime(self, index):
         if index < len(self):
             rtime = sum([f.duration for f in self.frames[:index+1]])
-            return self.absolute_time(rtime)
-        return self.absolute_time(0)
+            return self.absoluteTime(rtime)
+        return self.absoluteTime(0)
     
 
 
@@ -195,19 +191,6 @@ class Frame(object):
         self._duration = max(1, int(value))
     duration = property(getDuration, setDuration)
 
-
-
-class AudioRecording(object):
-    """
-    An audio recording. Times are represented in seconds.
-    """
-    def __init__(self):
-        self.mtime = 0
-        # the audio's duration in seconds
-        self.duration = 0
-    
-    def __repr__(self):
-        return '<AudioRecording | {0.duration} sec>'.format(self) 
 
 class VideoRecording(object):
     pass
@@ -270,7 +253,7 @@ class ImageCollection(object):
         self._images = []
         if isinstance(value, (tuple, list)):
             for i in value:
-                if isinstance(i, (str, unicode)) and self.is_valid_image(i):
+                if isinstance(i, (str, unicode)) and self.isValidImage(i):
                     self._images.append(os.path.normpath(i))
         elif isinstance(value, (str, unicode)):
             self._images.append(os.path.normpath(value))
@@ -284,16 +267,16 @@ class ImageCollection(object):
     def setSeek(self, value):
         if not isinstance(value, int):
             raise TypeError
-        self._seek = self.validate_index(value)
+        self._seek = self.validateIndex(value)
     seek = property(getSeek, setSeek)
     
-    def validate_index(self, value):
+    def validateIndex(self, value):
         if len(self._images) == 0:
             return 0
         else:
             return value % len(self._images)
     
-    def is_valid_image(self, image):
+    def isValidImage(self, image):
         types = [x.strip('.').lower() for x in self.imageTypes]
         ext = os.path.splitext(image)[1].strip('.')
         return ext.lower() in types
@@ -322,20 +305,20 @@ class ImageCollection(object):
     def extend(self, images):
         self.append(images)
     
-    def load_dir(self, dir_, additive=False):
+    def loadDir(self, dir_, additive=False):
         if not os.path.isdir(dir_):
             raise OSError('directory does not exist: {0}'.format(dir_))
         files = os.listdir(dir_)
-        imgs = [os.path.join(dir_, i) for i in files if self.is_valid_image(i)]
+        imgs = [os.path.join(dir_, i) for i in files if self.isValidImage(i)]
         if additive:
             self.images.extend(imgs)
         else:
             self.images = imgs
         self.sort()
     
-    def load_sequence(self, image):
+    def loadSequence(self, image):
         """ Load the image sequence associated with the given image """
-        LOG.warning('load_sequence not yet implemented')
+        LOG.warning('loadSequence not yet implemented')
         self._images = image
     
     def sort(self, cmp_=None, key=None, reverse=False):
@@ -356,7 +339,7 @@ class ImageCollection(object):
             self.seek -= 1
             i = self.seek
         else:
-            i = self.validate_index(self.seek - 1)
+            i = self.validateIndex(self.seek - 1)
         return self[i]
     
     def next(self, seek=True):
@@ -366,7 +349,7 @@ class ImageCollection(object):
             self.seek += 1
             i = self.seek
         else:
-            i = self.validate_index(self.seek + 1)
+            i = self.validateIndex(self.seek + 1)
         return self[i]
     
     def seekToImage(self, image):
