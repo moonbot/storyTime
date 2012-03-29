@@ -12,6 +12,7 @@ from PySide.QtUiTools import QUiLoader
 import audio
 import logging
 import os
+import utils
 
 LOG = logging.getLogger('storyTime.controllers')
 
@@ -149,6 +150,7 @@ class StoryTimeWindow(object):
         
         # build some dynamic menus
         self.buildAudioInputsMenu()
+        self.ui.menuFPS.setEnabled(False)
         # hookup menu actions
         self.ui.actionNewRecording.triggered.connect(self.newRecording)
         self.ui.actionOpenRecording.triggered.connect(self.openRecording)
@@ -349,6 +351,7 @@ class ImageSlider(QWidget):
     def setModel(self, model):
         self._model = model
         self.ui.CacheImagesBtn.clicked.connect(self._model.cacheAllImages)
+        self.ui.ClearCacheBtn.clicked.connect(self._model.clearCache)
         self._dataMapper.setModel(model)
         self._dataMapper.addMapping(self.ui.ImagePath, Mappings.curImagePath, 'text')
         self._dataMapper.addMapping(self.ui.ImageSlider, Mappings.curImageIndex, 'sliderPosition')
@@ -381,6 +384,11 @@ class TimeSlider(QWidget):
         self.timer = QTimer()
         self.timer.timerEvent = self.timerEvent
         
+        # add context menu to audio
+        action = QAction('Open Audio Folder...', self.ui)
+        action.triggered.connect(self.openAudioFolder)
+        self.ui.AudioCheck.addAction(action)
+        
         # hide hidden controls
         self.ui.IsRecordingCheck.setVisible(False)
         self.ui.IsPlayingCheck.setVisible(False)
@@ -406,6 +414,11 @@ class TimeSlider(QWidget):
     
     def audioCheckToggled(self):
         self._dataMapper.submit()
+    
+    def openAudioFolder(self):
+        dir_ = self._model.getAudioDir()
+        if os.path.isdir(dir_):
+            utils.openDir(dir_)
     
     def recordingIndexChanged(self):
         if self.isPlaying and not self.isRecording:

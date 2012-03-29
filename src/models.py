@@ -6,10 +6,9 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
 from data import *
-from utils import enum, get_timecode
 from PySide.QtCore import *
 from PySide.QtGui import *
-import audio
+import audio, utils
 import logging
 import math
 import os
@@ -17,7 +16,7 @@ import os
 LOG = logging.getLogger('storyTime.models')
 
 # TODO: cluster mappings that affect each other or create event pool presets
-Mappings = enum(
+Mappings = utils.enum(
     'isRecording', 'isPlaying', 'fps', 'curTime', 'timeDisplay', 'isTimeDisplayFrames', 'audioEnabled', 'audioInputDeviceIndex', 'audioOutputDeviceIndex',
     'imageCount', 'curImageIndex', 'curImageIndexLabel', 'curImagePath', 'curImage', 'prevImage', 'nextImage',
     'recordingIndex', 'recordingName', 'recordingFps', 'recordingDuration', 'recordingDurationDisplay', 'recordingImageCount',
@@ -27,19 +26,40 @@ Mappings = enum(
 
 class PixmapCache(object):
     def __init__(self):
+        self.maxCount = 150
         self.clear()
     
     def __getitem__(self, name):
         return self._data[self.normKey(name)]
     
     def __setitem__(self, name, value):
-        self._data[self.normKey(name)] = value
+        key = self.normKey(name)
+        if key not in self._list:
+            self._list.append(key)
+        self._data[key] = value
+        self.checkCount()
     
     def __delitem__(self, name):
-        del self._data[self.normKey(name)]
+        key = self.normKey(name)
+        del self._data[key]
+        self._list.remove(key)
+    
+    @property
+    def count(self):
+        return len(self._list)
+    
+    def checkCount(self):
+        """Check the current cache count and removed images if necessary"""
+        while self.count > max(0, self.maxCount):
+            self.pop()
     
     def clear(self):
+        self._list = []
         self._data = {}
+    
+    def pop(self):
+        if self.count > 0:
+            del self[self._list[0]]
     
     def items(self):
         return self._data.items()
@@ -52,6 +72,9 @@ class PixmapCache(object):
     
     def has_key(self, key):
         return self._data.has_key(self.normKey(key))
+    
+    def add(self, path):
+        self.getPixmap(path)
     
     def getPixmap(self, path):
         if not isinstance(path, (str, unicode)):
@@ -143,7 +166,7 @@ class StoryTimeModel(QAbstractItemModel):
         if self.isTimeDisplayFrames:
             return '{0}'.format(self.curTime)
         else:
-            return get_timecode(self.curTime, self.recordingFps)
+            return utils.getTimecode(self.curTime, self.recordingFps)
     
     def toggleTimeDisplay(self):
         self.isTimeDisplayFrames = not self.isTimeDisplayFrames
@@ -185,8 +208,18 @@ class StoryTimeModel(QAbstractItemModel):
                 self._audioEnabled = value
     audioEnabled = property(getAudioEnabled, setAudioEnabled)
     
+    def getAudioDir(self):
+        return os.path.expanduser('~/storyTime/audio')
+    
     def getAudioPath(self, name):
-        return os.path.join(os.path.expanduser('~'), name)
+        filename = utils.normalizeFilename('{name}_{date}'.format(name=name, date=utils.timeString()))
+        path = os.path.join(self.getAudioDir(), filename)
+        return path
+    
+    def moveAudioRecording(self, src, dst, recording):
+        if os.path.isfile(src):
+            os.remove(src)
+        recording.save(dst)
     
     @property
     def recordingFps(self):
@@ -195,6 +228,16 @@ class StoryTimeModel(QAbstractItemModel):
     @property
     def recordingName(self):
         return self.curRecording.name
+    
+    def getNewRecordingName(self, index=None):
+        if index is None:
+            index = self.recordingCount + 1
+        if len(self.images) > 0:
+            f = os.path.splitext(os.path.basename(self.images[0]))[0]
+            name = '{f} {0:03}'.format(index, f=f)
+            return name
+        else:
+            return 'Story Time Recording {0:03}'.format(index)
     
     @property
     def recordingDuration(self):
@@ -212,7 +255,7 @@ class StoryTimeModel(QAbstractItemModel):
     
     @property
     def recordingDurationDisplay(self):
-        return get_timecode(self.recordingDuration, self.recordingFps)
+        return utils.getTimecode(self.recordingDuration, self.recordingFps)
     
     @property
     def recordingImageCount(self):
@@ -230,7 +273,7 @@ class StoryTimeModel(QAbstractItemModel):
     
     def newRecording(self):
         new = RecordingCollection()
-        new.name = 'Recording {0}'.format(self.recordingCount + 1)
+        new.name = self.getNewRecordingName()
         new.audio.inputDeviceIndex = self.audioInputDeviceIndex
         new.audio.outputDeviceIndex = self.audioOutputDeviceIndex
         self.recordings.append(new)
@@ -287,13 +330,29 @@ class StoryTimeModel(QAbstractItemModel):
             else:
                 # TODO: replace this with loading the image sequence
                 self.imageCollection.loadDir(os.path.dirname(path))
+        # update the recording's name, if applicable
+        self.updateRecordingName()
         # emit signals
         self.imageDataChanged()
+    
+    def updateRecordingName(self):
+        if self.curRecording.name.startswith('Story Time Recording'):
+            try:
+                index = int(self.curRecording.name.split(' ')[-1])
+            except:
+                return
+            # update the recording's name to match
+            self.curRecording.name = self.getNewRecordingName(index)
+            self.mappingChanged(Mappings.recordingName)
     
     def cacheAllImages(self):
         # cache the images
         LOG.debug('Caching images...')
         self.pixmapCache.cache(self.images)
+    
+    def clearCache(self):
+        LOG.debug('Clearing cache {0}'.format(self.pixmapCache.count))
+        self.pixmapCache.clear()
     
     @property
     def imageCount(self):
@@ -335,11 +394,14 @@ class StoryTimeModel(QAbstractItemModel):
         frame = self.curFrameRecording.getFrame(time)
         if frame is not None:
             self.imageCollection.seekToImage(frame.image)
+            self.pixmapCache.add(self.nextImage)
             self.imageDataChanged()
             self.recordingDataChanged()
     
     def loadImage(self, index):
         self.imageCollection.seek = index
+        # update cache
+        self.pixmapCache.add(self.nextImage)
         self.imageDataChanged()
         self.recordingDataChanged()
     
@@ -445,9 +507,7 @@ class StoryTimeModel(QAbstractItemModel):
         elif m == Mappings.recordingName:
             # move the current audio file, if one exists
             if self.curAudioRecording.hasRecording:
-                if os.path.isfile(self.curAudioRecording.filename):
-                    os.remove(self.curAudioRecording.filename)
-                self.curAudioRecording.save(self.getAudioPath(value))
+                self.moveAudioRecording(self.curAudioRecording.filename, self.getAudioPath(value), self.curAudioRecording)
             self.curRecording.name = value
             self.mappingChanged(Mappings.recordingName)
             return True

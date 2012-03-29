@@ -155,7 +155,20 @@
              <enum>Qt::NoFocus</enum>
             </property>
             <property name="text">
-             <string>Cache Images</string>
+             <string>Cache All</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="ClearCacheBtn">
+            <property name="font">
+             <font>
+              <family>Tahoma</family>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>Clear Cache</string>
             </property>
            </widget>
           </item>

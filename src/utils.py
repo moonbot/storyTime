@@ -1,7 +1,12 @@
 
+from datetime import datetime
 import math
 import os
 import re
+import string
+import subprocess
+import sys
+import unicodedata
 
 
 def enum(*args):
@@ -9,16 +14,21 @@ def enum(*args):
     enums['names'] = args
     return type('enum', (), enums)
 
-def listdir(path):
+def openDir(dir_):
     """
-    Return a sorted list of the full paths of the entries in the 
-    current directory.
-    
-    `path` -- path of directory or filename in directory to list
+    Open the given directory using the platform appropriate file browser
     """
-    if os.path.isfile(path):
-        path = os.path.split(path)[0]
-    return sorted([os.path.join(path, x) for x in os.listdir(path)])
+    dir_ = os.path.expanduser(dir_)
+    if os.path.isfile(dir_):
+        dir_ = os.path.dirname(dir_)
+    if os.path.isdir(dir_):
+        if sys.platform == 'win32':
+            dir_ = os.path.normpath(dir_)
+            subprocess.Popen(['explorer.exe', dir_])
+        elif sys.platform == 'darwin':
+            subprocess.Popen(['open', dir_])
+        elif sys.platform == 'linux2':
+            pass
 
 def get_latest_version(dirname):
     """Return the latest version of the given filename"""
@@ -32,12 +42,22 @@ def get_latest_version(dirname):
     except:
         return None
 
+def timeString():
+    d = datetime.now()
+    return d.strftime('%Y%m%d_%H%M%S')
+
+
+def normalizeFilename(filename):
+    validChars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+    clean = unicodedata.normalize('NFKD', unicode(filename)).encode('ASCII', 'ignore')
+    return ''.join(c for c in clean if c in validChars).replace(' ', '_')
+
 
 # time based media functions
 TIMECODE_FMT = '{hr:02}:{min:02}:{sec:02}:{frame:02}'
 FPS = 24
 
-def get_timecode(frame, fps=FPS, percentage=False, timeCodeFmt=TIMECODE_FMT):
+def getTimecode(frame, fps=FPS, percentage=False, timeCodeFmt=TIMECODE_FMT):
     """
     Convert a frame number to a timecode starting at 00:00:00:00
     ``frame`` -- the frame to convert to a time code
