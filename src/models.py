@@ -12,6 +12,9 @@ import audio, utils, fcpxml
 import logging
 import math
 import os
+import tempfile, shutil
+import pdb
+import subprocess
 
 LOG = logging.getLogger('storyTime.models')
 
@@ -380,6 +383,31 @@ class StoryTimeModel(QAbstractItemModel):
     def exportRecording(self, filename, platform='win'):
         xml = self.toXml(platform)
         # TODO: write the xml to the given filename
+        
+        # TODO: put below in its own function
+        LOG.debug("copying images to temp for video export")
+        
+        tempDir = tempfile.gettempdir()
+        LOG.debug("tempDir = " + tempDir)
+        
+        frames = self.curFrameRecording.frames
+        ext = os.path.splitext(frames[0].image)[-1]
+        count = 0
+        
+        format_string = lambda filename, index, ext: os.path.join(tempDir, 'storytime.{0}.{1:06d}{2}'.format(filename, index, ext))
+        
+        for i in range(len(frames)):
+            for j in range(frames[i].duration):
+                count += 1
+                imagePath = frames[i].image
+                shutil.copyfile(imagePath, format_string(filename, count, ext))
+                
+        aud_fmt = self.curAudioRecording.filename
+        img_fmt = os.path.join(tempDir, 'storytime.{0}.%06d{1}'.format(filename, ext))
+        vid_fmt = os.path.join(tempDir, '{0}.mov'.format(filename))
+        subprocess.Popen(['ffmpeg', '-r', '24', '-f', 'image2', '-i', img_fmt,'-i', aud_fmt, '-map', '0:0', '-map', '1:0',
+                          '-vcodec', 'libx264', '-acodec', 'mp2', '-preset', 'slow', '-b', '2200k', '-g', '12', vid_fmt]).wait()   
+        
     
     def saveRecording(self, filename=None):
         # TODO: serialize self.curRecording (the RecordingCollection) and save to file

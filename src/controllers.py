@@ -285,12 +285,11 @@ class StoryTimeWindow(object):
     def exportForFCP(self):
         # TODO: browse for a destination then call exportRecording on self._model
         LOG.debug('Exporting for FCP')
+        self._model.exportRecording("blah")
     
     def exportForPremiere(self):
         # TODO: browse for a destination then call exportRecording on self._model
         LOG.debug('Exporting for Premiere')
-
-
 
 class ImageView(QWidget):
     """
