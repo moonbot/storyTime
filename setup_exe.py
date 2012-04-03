@@ -1,9 +1,11 @@
 from distutils.core import setup
 import py2exe
 import os
+import sys
 import shutil
 
-pysideDir = r'C:\Python27\Lib\site-packages\PySide'
+pyDir = os.path.dirname(sys.executable)
+pysideDir = os.path.join(pyDir, 'Lib/site-packages/PySide')
 qtconf = '[PATHS]\nBinaries=.\nPlugins=plugins'
 
 ico = 'storyTime/images/StoryTime.ico'

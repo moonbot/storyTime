@@ -87,7 +87,7 @@ class FcpXml(object):
         self.xml = imp.createDocument(None, 'xmeml', doctype)
         self.images = images
         self.audioPath = audioPath
-        self.includeAudio = os.path.exists(audioPath)
+        self.includeAudio = audioPath is not None and os.path.exists(audioPath)
         self.settings['name'] = name
         self.settings['fps'] = str(fps)
         self.settings['platform'] = platform
