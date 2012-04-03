@@ -8,66 +8,12 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 from models import Mappings, StoryTimeModel
 from PySide.QtCore import *
 from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
 import audio
 import logging
 import os
 import utils
 
 LOG = logging.getLogger('storyTime.controllers')
-
-#from views.testPySide_ui import Ui_Form as testPySide_ui
-#UI_CLASSES = {
-#    'views/testPySide.ui':testPySide_ui,
-#}
-USE_UILOADER = True
-
-
-def loadUi(name, parent=None):
-    """ Load the requested ui file using either loadUi_py or loadUi_ui """
-    fnc = loadUi_ui if USE_UILOADER else loadUi_py
-    return fnc(name, parent)
-
-
-def loadUi_py(name, parent=None):
-    """
-    Load the requested ui file using the proper python class.
-    Classes must already be loaded
-    """
-    if not UI_CLASSES.has_key(name):
-        raise ValueError('no ui named: {0}'.format(name))
-    LOG.debug(name)
-    ui = UI_CLASSES[name]()
-    if parent is not None:
-        ui.setupUi(parent)
-    return ui
-
-
-def loadUi_ui(path, parent=None):
-    """
-    Load the requested ui file at the given path dynamically
-    using the QUiLoader tool. This unfortunately will not
-    work in combination with .exe packaging.
-    """
-    from PySide.QtUiTools import QUiLoader
-    LOG.debug(path)
-    
-    def attachUi(ui, parent):
-        if parent is None:
-            return
-        if parent.layout() is None:
-            layout = QVBoxLayout()
-            layout.setContentsMargins(0, 0, 0, 0)
-            parent.setLayout(layout)
-        parent.layout().addWidget(ui)
-        
-    loader = QUiLoader()
-    file_ = QFile(path)
-    file_.open(QFile.ReadOnly)
-    ui = loader.load(file_, parent)
-    attachUi(ui, parent)
-    file_.close()
-    return ui
 
 
 class EventEater(QObject):
@@ -140,10 +86,11 @@ class StoryTimeWindow(object):
     
     def __init__(self):
         self.uiParent = QWidget()
-        self.ui = loadUi('views/main.ui', self.uiParent)
+        self.ui = utils.loadUi('views/main.ui', self.uiParent)
         self.ui.setFocusPolicy(Qt.StrongFocus)
         self.ui.setWindowTitle('Story Time')
         self.ui.setAcceptDrops(True)
+        self.ui.show()
         
         # setup model
         self._model = StoryTimeModel(self.ui)
@@ -191,9 +138,6 @@ class StoryTimeWindow(object):
         self.ui.actionImportImages.triggered.connect(self.importImages)
         self.ui.actionExportForFCP.triggered.connect(self.exportForFCP)
         self.ui.actionExportForPremiere.triggered.connect(self.exportForPremiere)
-    
-    def show(self):
-        self.ui.show()
     
     def setPrevImageViewVisible(self, visible):
         self.setImageViewVisible('prev', visible)
@@ -334,7 +278,7 @@ class ImageView(QWidget):
     """
     def __init__(self, pixmapMapping, index, parent=None):
         super(ImageView, self).__init__(parent)
-        self.ui = loadUi('views/imageView.ui', self)
+        self.ui = utils.loadUi('views/imageView.ui', self)
         self._dataMapper = QDataWidgetMapper()
         self.pixmapMapping = pixmapMapping
         # for use when adjusting layout stretch
@@ -376,7 +320,7 @@ class ImageSlider(QWidget):
     def __init__(self, parent=None):
         super(ImageSlider, self).__init__(parent)
         #self.setupUi(self)
-        self.ui = loadUi('views/imageSlider.ui', self)
+        self.ui = utils.loadUi('views/imageSlider.ui', self)
         self._dataMapper = QDataWidgetMapper()
         
         self.ui.ImageSlider.valueChanged.connect(self._dataMapper.submit)
@@ -417,7 +361,7 @@ class TimeSlider(QWidget):
     def __init__(self, parent=None):
         super(TimeSlider, self).__init__(parent)
         #self.setupUi(self)
-        self.ui = loadUi('views/timeSlider.ui', self)
+        self.ui = utils.loadUi('views/timeSlider.ui', self)
         self._dataMapper = QDataWidgetMapper()
         
         # used to keep track of playback time

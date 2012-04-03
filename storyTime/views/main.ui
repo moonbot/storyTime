@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>921</width>
+    <height>731</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <property name="styleSheet">
+   <string>background-color: rgb(50, 50, 50);color: rgb(255, 255, 255);selection-background-color:rgb(140, 140, 140)</string>
+  </property>
+  <widget class="QWidget" name="mainLayout_2">
+   <layout class="QVBoxLayout" name="verticalLayout" stretch="1,0">
+    <property name="margin">
+     <number>4</number>
+    </property>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,0">
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>0</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QFrame" name="frame">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <property name="margin">
+          <number>4</number>
+         </property>
+         <item>
+          <layout class="QHBoxLayout" name="layoutImageViews" stretch="1,4,1">
+           <property name="margin">
+            <number>2</number>
+           </property>
+           <item>
+            <layout class="QVBoxLayout" name="layoutPrevImage"/>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="layoutCurImage"/>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="layoutNextImage"/>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_2">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>0</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QVBoxLayout" name="layoutControls">
+      <property name="topMargin">
+       <number>5</number>
+      </property>
+      <property name="bottomMargin">
+       <number>5</number>
+      </property>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>921</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <widget class="QMenu" name="menuRecent">
+     <property name="title">
+      <string>Recent</string>
+     </property>
+    </widget>
+    <addaction name="actionNewRecording"/>
+    <addaction name="actionOpenRecording"/>
+    <addaction name="menuRecent"/>
+    <addaction name="actionSaveRecording"/>
+    <addaction name="actionSaveRecordingAs"/>
+    <addaction name="separator"/>
+    <addaction name="actionImportImages"/>
+    <addaction name="actionExportForFCP"/>
+    <addaction name="actionExportForPremiere"/>
+   </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <widget class="QMenu" name="menuFPS">
+     <property name="title">
+      <string>Framerate</string>
+     </property>
+     <addaction name="action24"/>
+     <addaction name="action25"/>
+     <addaction name="action48"/>
+     <addaction name="action30"/>
+     <addaction name="action50"/>
+     <addaction name="action60"/>
+     <addaction name="actionCustom_2"/>
+    </widget>
+    <widget class="QMenu" name="menuAudioInputDevices">
+     <property name="title">
+      <string>Audio Input</string>
+     </property>
+    </widget>
+    <addaction name="menuFPS"/>
+    <addaction name="menuAudioInputDevices"/>
+    <addaction name="actionOSMappings"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
+  </widget>
+  <action name="actionImport_Image_Sequence">
+   <property name="text">
+    <string>Import Image Sequence...</string>
+   </property>
+  </action>
+  <action name="actionOpen">
+   <property name="text">
+    <string>Open...</string>
+   </property>
+  </action>
+  <action name="actionSave">
+   <property name="text">
+    <string>Save</string>
+   </property>
+  </action>
+  <action name="actionSave_As">
+   <property name="text">
+    <string>Save As...</string>
+   </property>
+  </action>
+  <action name="action24">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Film (24 fps)</string>
+   </property>
+  </action>
+  <action name="action25">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>PAL (25 fps)</string>
+   </property>
+  </action>
+  <action name="action30">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>NTSC (30 fps)</string>
+   </property>
+  </action>
+  <action name="action48">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show (48 fps)</string>
+   </property>
+  </action>
+  <action name="action50">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>PAL Field (50 fps)</string>
+   </property>
+  </action>
+  <action name="action60">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>NTSC Field (60 fps)</string>
+   </property>
+  </action>
+  <action name="actionCustom">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Custom...</string>
+   </property>
+  </action>
+  <action name="actionCustom_2">
+   <property name="text">
+    <string>Custom...</string>
+   </property>
+  </action>
+  <action name="actionSet_Recording_Countdown">
+   <property name="text">
+    <string>Set Recording Countdown...</string>
+   </property>
+  </action>
+  <action name="actionImport_Directory">
+   <property name="text">
+    <string>Import Directory...</string>
+   </property>
+  </action>
+  <action name="actionOpenRecording">
+   <property name="text">
+    <string>Open...</string>
+   </property>
+  </action>
+  <action name="actionImportImages">
+   <property name="text">
+    <string>Import Images...</string>
+   </property>
+  </action>
+  <action name="actionImport_Directory_2">
+   <property name="text">
+    <string>Import Directory...</string>
+   </property>
+  </action>
+  <action name="actionSaveRecording">
+   <property name="text">
+    <string>Save</string>
+   </property>
+  </action>
+  <action name="actionSaveRecordingAs">
+   <property name="text">
+    <string>Save As...</string>
+   </property>
+  </action>
+  <action name="actionExportForFCP">
+   <property name="text">
+    <string>Export for Final Cut Pro...</string>
+   </property>
+  </action>
+  <action name="actionExportForPremiere">
+   <property name="text">
+    <string>Export for Premiere...</string>
+   </property>
+  </action>
+  <action name="actionNewRecording">
+   <property name="text">
+    <string>New...</string>
+   </property>
+  </action>
+  <action name="actionOSMappings">
+   <property name="text">
+    <string>OS Mappings...</string>
+   </property>
+  </action>
+  <action name="actionAsdf">
+   <property name="text">
+    <string>asdf</string>
+   </property>
+  </action>
+  <action name="actionBuilt_In_Microphone">
+   <property name="text">
+    <string>Built-In Microphone</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
