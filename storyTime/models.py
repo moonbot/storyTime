@@ -223,12 +223,12 @@ class StoryTimeModel(QAbstractItemModel):
         return os.path.expanduser('~/storyTime')
     
     def getAudioPath(self, name):
-        filename = utils.normalizeFilename('{name}_{date}'.format(name=name, date=utils.timeString()))
+        filename = utils.normalizeFilename('{date}_{name}'.format(name=name, date=utils.timeString()))
         path = os.path.join(self.getStoryTimePath(), filename)
         return path
     
     def getRecordingPath(self, name):
-        filename = utils.normalizeFilename('{name}_{date}'.format(name=name, date=utils.timeString()))
+        filename = utils.normalizeFilename('{date}_{name}'.format(name=name, date=utils.timeString()))
         path = os.path.join(self.getStoryTimePath(), filename)
         return path
     
@@ -440,28 +440,18 @@ class StoryTimeModel(QAbstractItemModel):
         LOG.debug('Saved recording to {0}'.format(filename))
         
     
-    def exportMovie(self, filename, index=None):
+    def exportMovie(self, filename, index=None, progress=None):
         if index is None:
             index = self.recordingIndex
-        
         recording = self.recordings[index]
-        # copy all the images into a sequence
-        tempDir = os.path.join(tempfile.gettempdir(), 'storyTimeMovieExport')
-        if not os.path.isdir(tempDir):
-            os.makedirs(tempDir)
-        LOG.debug('copying images to temp directory for video export: {0}'.format(tempDir))
-        frames = recording.frames.frames
-        ext = os.path.splitext(frames[0].image)[-1].strip('.')
         
-        imgFmt = os.path.join(tempDir, 'storytime.{0:06d}.{1}')
-        LOG.debug(enumerate([f.image for f in frames for d in range(f.duration)]))
-        for i, image in enumerate([f.image for f in frames for d in range(f.duration)]):
-            shutil.copyfile(image, imgFmt.format(i, ext))
+        img_fmt = self.exportFrameRecordingSequence(recording.frames, progress)
+        if img_fmt is None:
+            return
         
-        img_fmt = os.path.join(tempDir, 'storytime.%06d.{0}'.format(ext))
         args = [
             FFMPEG,
-            '-t', len(frames),
+            '-t', len(recording),
             '-r', self.recordingFps,
             '-f', 'image2',
             '-i', img_fmt,
@@ -480,6 +470,39 @@ class StoryTimeModel(QAbstractItemModel):
         args.append(filename)
         LOG.debug(args)
         subprocess.Popen([str(a) for a in args])
+    
+    def exportFrameRecordingSequence(self, recording, progress=None):
+        """
+        Save the given frame recording out to an
+        image sequence and return the sequence format
+        """
+        # get temporary directory
+        dir_ = os.path.join(tempfile.gettempdir(), 'storyTimeMovieExport')
+        if not os.path.isdir(dir_):
+            os.makedirs(dir_)
+        LOG.debug('copying images to temp directory for video export: {0}'.format(dir_))
+        
+        # create img naming format
+        frames = recording.frames
+        ext = os.path.splitext(frames[0].image)[-1]
+        imgFmt = os.path.join(dir_, 'storyTimeExport.%06d{0}'.format(ext))
+        
+        # progress bar prep
+        if progress is not None:
+            progress.setLabelText('Exporting image sequence to be encoded...')
+            progress.setMaximum(recording.duration)
+        
+        for i, image in enumerate([f.image for f in frames for d in range(f.duration)]):
+            shutil.copyfile(image, imgFmt % i)
+            if progress is not None:
+                progress.setValue(i)
+                if progress.wasCanceled():
+                    return
+        
+        if progress is not None:
+            progress.setValue(recording.duration)
+        
+        return imgFmt
     
     @property
     def imageCount(self):

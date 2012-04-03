@@ -274,7 +274,9 @@ class StoryTimeWindow(object):
         caption = 'Export Movie...'
         file = self.getSaveDestination(caption, filter='MOV files (*.mov)')
         if file is not None:
-            self._model.exportMovie(file)
+            progress = QProgressDialog('Exporting Movie...', 'Cancel', 0, 100, self.ui)
+            progress.setWindowModality(Qt.WindowModal)
+            self._model.exportMovie(file, progress=progress)
     
     def exportForEditing(self):
         caption = 'Export XML for Editing...'
