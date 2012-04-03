@@ -41,9 +41,6 @@ class EventEater(QObject):
     def handlePaths(self, paths):
         pass
     
-    def handleRecordingFiles(self, paths):
-        pass
-    
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls:
             event.accept()

@@ -206,6 +206,9 @@ class StoryTimeModel(QAbstractItemModel):
     def curAudioRecording(self):
         return self.curRecording.audio
     
+    def getRecordingAtIndex(self, index):
+        return self.recordings[index]        
+    
     def getAudioEnabled(self):
         return self._audioEnabled
     def setAudioEnabled(self, value):
@@ -378,7 +381,7 @@ class StoryTimeModel(QAbstractItemModel):
         LOG.debug('Clearing cache {0}'.format(self.pixmapCache.count))
         self.pixmapCache.clear()
     
-    def toXml(self, platform=None):
+    def toXml(self, platform=None, index=None):
         """
         Export the current recording collection to an editorial xml file.
         
@@ -386,24 +389,29 @@ class StoryTimeModel(QAbstractItemModel):
             this is where path mapping will be taken into account.
         
         """
-        frameImages = [f.image for f in self.curFrameRecording.frames]
-        frameDurations = [f.duration for f in self.curFrameRecording.frames]
+        if index is None:
+            index = self.recordingIndex
+        recording = self.recordings[index]
+        frameImages = [f.image for f in recording.frames.frames]
+        frameDurations = [f.duration for f in recording.frames.frames]
         if platform is None:
             platform = sys.platform
         
         if len(self.curFrameRecording) > 0:
             fcpkw = {
-                'name':self.recordingName,
+                'name':recording.name,
                 'images':zip(frameImages, frameDurations),
-                'audioPath':self.curAudioRecording.filename,
-                'fps':self.recordingFps,
-                'ntsc':(self.recordingFps % 30 == 0),
+                'audioPath':recording.audio.filename,
+                'fps':recording.fps,
+                'ntsc':(recording.fps % 30 == 0),
                 'platform':platform,
             }
             return fcpxml.FcpXml(**fcpkw).toString()
     
-    def exportRecording(self, filename, platform='win'):
-        xml = self.toXml(platform)
+    def exportRecording(self, filename, platform='win', index=None):
+        if index is None:
+            index = self.recordingIndex
+        xml = self.toXml(platform, index)
         with open(filename, 'wb') as fp:
             fp.write(xml)
         LOG.info('Exported recording: {0}'.format(filename))
@@ -421,25 +429,28 @@ class StoryTimeModel(QAbstractItemModel):
         allImages = sorted(list(set(self.images + recording.frames.images)))
         self.images = allImages
     
-    def saveRecording(self, filename=None):
+    def saveRecording(self, filename=None, index=None):
+        if index is None:
+            index = self.recordingIndex
         # force extension
         filename = '{0}.xml'.format(os.path.splitext(filename)[0])
         # if filename is none should try to use lastSavedFilename for the current recording collection
         with open(filename, 'wb') as fp:
-            pickle.dump(self.curRecording.toString(), fp)
-        LOG.info('Saved recording to {0}'.format(filename))
+            pickle.dump(self.recordings[index].toString(), fp)
+        LOG.debug('Saved recording to {0}'.format(filename))
         
     
-    def exportMovie(self, filename):
-        if len(self.curFrameRecording) == 0:
-            LOG.debug('cant export recording. no content has been recorded yet')
-            return
+    def exportMovie(self, filename, index=None):
+        if index is None:
+            index = self.recordingIndex
+        
+        recording = self.recordings[index]
         # copy all the images into a sequence
         tempDir = os.path.join(tempfile.gettempdir(), 'storyTimeMovieExport')
         if not os.path.isdir(tempDir):
             os.makedirs(tempDir)
         LOG.debug('copying images to temp directory for video export: {0}'.format(tempDir))
-        frames = self.curFrameRecording.frames
+        frames = recording.frames.frames
         ext = os.path.splitext(frames[0].image)[-1].strip('.')
         
         imgFmt = os.path.join(tempDir, 'storytime.{0:06d}.{1}')
@@ -458,9 +469,9 @@ class StoryTimeModel(QAbstractItemModel):
             '-vcodec', 'libx264',
             '-g', '12',
         ]
-        if self.curAudioRecording.hasRecording and False:
+        if recording.audio.hasRecording and False:
             args += [
-                '-i', self.curAudioRecording.filename,
+                '-i', recording.audio.filename,
                 '-map', '1:0',
                 '-acodec', 'aac',
                 '-preset', 'slow',
