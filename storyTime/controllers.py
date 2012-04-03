@@ -8,30 +8,12 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 from models import Mappings, StoryTimeModel
 from PySide.QtCore import *
 from PySide.QtGui import *
-from PySide.QtUiTools import QUiLoader
 import audio
 import logging
 import os
 import utils
 
 LOG = logging.getLogger('storyTime.controllers')
-
-def loadUi(path, parent=None, attach=False):
-    loader = QUiLoader()
-    file_ = QFile(path)
-    file_.open(QFile.ReadOnly)
-    widget = loader.load(file_, parent)
-    if attach:
-        attachUi(widget, parent)
-    file_.close()
-    return widget
-
-def attachUi(widget, parent):
-    if parent.layout() is None:
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        parent.setLayout(layout)
-    parent.layout().addWidget(widget)
 
 
 class EventEater(QObject):
@@ -48,7 +30,7 @@ class EventEater(QObject):
             
         elif event.type() == QEvent.Drop:
             return self.dropEvent(event)
-            
+        
         else:
             # standard event processing
             return QObject.eventFilter(self, obj, event)
@@ -86,8 +68,6 @@ class EventEater(QObject):
         return True
 
 
-#base, form = uic.loadUiType('views/main.ui')
-
 class StoryTimeWindow(object):
     """
     The Main Story Time Window. Loads and attaches each of the main control
@@ -104,13 +84,12 @@ class StoryTimeWindow(object):
     def instance():
         return StoryTimeWindow._instance
     
-    def __init__(self):        
-        #super(StoryTimeWindow, self).__init__(parent)
-        #self.setupUi(self)
-        self.ui = loadUi('views/main.ui')
+    def __init__(self):
+        self.uiParent = QWidget()
+        self.ui = utils.loadUi('views/main.ui', self.uiParent)
         self.ui.setFocusPolicy(Qt.StrongFocus)
-        self.ui.setAcceptDrops(True)
         self.ui.setWindowTitle('Story Time')
+        self.ui.setAcceptDrops(True)
         self.ui.show()
         
         # setup model
@@ -152,13 +131,13 @@ class StoryTimeWindow(object):
         self.buildAudioInputsMenu()
         self.ui.menuFPS.setEnabled(False)
         # hookup menu actions
+        self.ui.menuFile.aboutToShow.connect(self.fileMenuAboutToShow)
         self.ui.actionNewRecording.triggered.connect(self.newRecording)
         self.ui.actionOpenRecording.triggered.connect(self.openRecording)
-        self.ui.actionSaveRecording.triggered.connect(self.saveRecording)
         self.ui.actionSaveRecordingAs.triggered.connect(self.saveRecordingAs)
+        self.ui.actionExportMovie.triggered.connect(self.exportMovie)
+        self.ui.actionExportForEditing.triggered.connect(self.exportForEditing)
         self.ui.actionImportImages.triggered.connect(self.importImages)
-        self.ui.actionExportForFCP.triggered.connect(self.exportForFCP)
-        self.ui.actionExportForPremiere.triggered.connect(self.exportForPremiere)
     
     def setPrevImageViewVisible(self, visible):
         self.setImageViewVisible('prev', visible)
@@ -243,12 +222,19 @@ class StoryTimeWindow(object):
         
         return False
     
+    def fileMenuAboutToShow(self):
+        hasRecording = len(self._model.curRecording) > 0
+        self.ui.actionSaveRecordingAs.setEnabled(hasRecording)
+        self.ui.actionExportMovie.setEnabled(hasRecording)
+        self.ui.actionExportForEditing.setEnabled(hasRecording)
+    
     def newRecording(self):
         self._model.newRecording()
         LOG.debug('New recording')
     
     def openRecording(self):
         caption = 'Open Story Time Recording...'
+        return self.featureNotDone()
         f = QFileDialog.getOpenFileName(
             self.ui,
             caption=caption,
@@ -256,21 +242,42 @@ class StoryTimeWindow(object):
         )
         LOG.debug('Opening story time file: {0}'.format(f))
     
-    def saveRecording(self):
-        # TODO: will need to implement a 'lastSavedFilename' on the RecordingCollection or model,
-        #       then if self._model.currentFilename is not None:
-        #       call self._model.saveRecording()
-        LOG.debug('Saving current recording where it was last saved.')
-    
     def saveRecordingAs(self):
         caption = 'Save Story Time Recording...'
-        files = QFileDialog.getSaveFileName(
-            self.ui,
-            caption=caption,
-            filter='XML files (*.xml)',
-        )
-        LOG.debug('Saving story time file: {0}'.format(files[0]))
-        self._model.saveRecording(files[0])
+        return self.featureNotDone()
+        file = self.getSaveDestination(caption)
+        if file is not None:
+            self._model.saveRecording(file)
+    
+    def exportMovie(self):
+        caption = 'Export Movie...'
+        return self.featureNotDone()
+        file = self.getSaveDestination(caption)
+        if file is not None:
+            self._model.exportMovie(file)
+    
+    def exportForEditing(self):
+        caption = 'Export XML for Editing...'
+        # get platform
+        msgBox = QMessageBox(self.ui)
+        msgBox.setText("Export XML for Editing...")
+        msgBox.setInformativeText("Which platform?")
+        winButton = msgBox.addButton('Windows', QMessageBox.ActionRole)
+        macButton = msgBox.addButton('Mac', QMessageBox.ActionRole)
+        abortButton = msgBox.addButton(QMessageBox.Cancel)
+
+        msgBox.exec_()
+        btn = msgBox.clickedButton()
+        if btn == winButton:
+            platform = 'win32'
+        elif btn == macButton:
+            platform = 'darwin'
+        else:
+            return
+        
+        file = self.getSaveDestination(caption)
+        if file is not None:
+            self._model.exportRecording(file, platform)
     
     def importImages(self):
         caption = 'Import Image(s)'
@@ -282,14 +289,21 @@ class StoryTimeWindow(object):
             self.loadPaths(files[0])
             LOG.debug('Imported {0}'.format(files[0]))
     
-    def exportForFCP(self):
-        # TODO: browse for a destination then call exportRecording on self._model
-        LOG.debug('Exporting for FCP')
-        self._model.exportRecording("blah")
+    def getSaveDestination(self, caption, filter='XML files (*.xml)', **kwargs):
+        files = QFileDialog.getSaveFileName(
+            self.ui,
+            caption=caption,
+            filter=filter,
+            **kwargs
+        )
+        return files[0] if len(files[0]) > 0 else None
     
-    def exportForPremiere(self):
-        # TODO: browse for a destination then call exportRecording on self._model
-        LOG.debug('Exporting for Premiere')
+    def featureNotDone(self):
+        msgBox = QMessageBox(self.ui)
+        msgBox.setText('This feature is not done yet...')
+        msgBox.setDefaultButton(QMessageBox.Ok)
+        msgBox.exec_()
+
 
 class ImageView(QWidget):
     """
@@ -298,7 +312,7 @@ class ImageView(QWidget):
     """
     def __init__(self, pixmapMapping, index, parent=None):
         super(ImageView, self).__init__(parent)
-        self.ui = loadUi('views/imageView.ui', self, True)
+        self.ui = utils.loadUi('views/imageView.ui', self)
         self._dataMapper = QDataWidgetMapper()
         self.pixmapMapping = pixmapMapping
         # for use when adjusting layout stretch
@@ -340,7 +354,7 @@ class ImageSlider(QWidget):
     def __init__(self, parent=None):
         super(ImageSlider, self).__init__(parent)
         #self.setupUi(self)
-        self.ui = loadUi('views/imageSlider.ui', self, True)
+        self.ui = utils.loadUi('views/imageSlider.ui', self)
         self._dataMapper = QDataWidgetMapper()
         
         self.ui.ImageSlider.valueChanged.connect(self._dataMapper.submit)
@@ -381,7 +395,7 @@ class TimeSlider(QWidget):
     def __init__(self, parent=None):
         super(TimeSlider, self).__init__(parent)
         #self.setupUi(self)
-        self.ui = loadUi('views/timeSlider.ui', self, True)
+        self.ui = utils.loadUi('views/timeSlider.ui', self)
         self._dataMapper = QDataWidgetMapper()
         
         # used to keep track of playback time

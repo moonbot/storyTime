@@ -1,5 +1,9 @@
 
+from PySide.QtCore import *
+from PySide.QtGui import *
+from PySide.QtUiTools import QUiLoader
 from datetime import datetime
+import logging
 import math
 import os
 import re
@@ -7,6 +11,50 @@ import string
 import subprocess
 import sys
 import unicodedata
+
+LOG = logging.getLogger('storyTime.utils')
+
+
+def isFrozen():
+    """
+    Return whether we are frozen via py2exe.
+    This will affect how we find out where we are located.
+    """
+    return hasattr(sys, 'frozen')
+
+def modulePath(withinPackage=False):
+    """ Return the program's directory, even when frozen via py2exe. """
+    if isFrozen():
+        return os.path.dirname(sys.executable)
+    else:
+        dir_ = os.path.dirname(__file__)
+        if withinPackage:
+            return dir_
+        else:
+            return os.path.dirname(dir_)
+
+
+def loadUi(path, parent):
+    """ Load the given ui file relative to this package """
+    fullPath = os.path.join(modulePath(True), path)
+    LOG.debug(fullPath)
+    if not os.path.isfile(fullPath):
+        raise ValueError('ui file not found: {0}'.format(fullPath))
+    loader = QUiLoader()
+    file_ = QFile(fullPath)
+    file_.open(QFile.ReadOnly)
+    widget = loader.load(file_, parent)
+    attachUi(widget, parent)
+    file_.close()
+    return widget
+
+
+def attachUi(widget, parent):
+    if parent.layout() is None:
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        parent.setLayout(layout)
+    parent.layout().addWidget(widget)
 
 
 def enum(*args):

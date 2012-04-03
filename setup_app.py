@@ -8,13 +8,16 @@ Usage:
 from setuptools import setup
 import os
 
-APP = ['src/storyTime.py']
-DATA_FILES = [ ('views', ['src/views/{0}'.format(x) for x in os.listdir('src/views')] ) ]
-OPTIONS = {'argv_emulation': True}
+uiDir = 'storyTime/views'
+uiFiles = [os.path.join(uiDir, ui) for ui in os.listdir(uiDir)]
 
 setup(
-    app=APP,
-    data_files=DATA_FILES,
-    options={'py2app': OPTIONS},
-    setup_requires=['py2app'],
+    app = ['run.py'],
+    data_files = [ ('views', uiFiles) ],
+    options = {'py2app': {
+        'argv_emulation': True,
+        'includes':['PySide.QtXml'],
+        }
+    },
+    setup_requires = ['py2app'],
 )
