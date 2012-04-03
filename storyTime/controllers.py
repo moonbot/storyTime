@@ -251,8 +251,7 @@ class StoryTimeWindow(object):
     
     def exportMovie(self):
         caption = 'Export Movie...'
-        return self.featureNotDone()
-        file = self.getSaveDestination(caption)
+        file = self.getSaveDestination(caption, filter='MOV files (*.mov)')
         if file is not None:
             self._model.exportMovie(file)
     

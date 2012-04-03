@@ -407,19 +407,19 @@ class StoryTimeModel(QAbstractItemModel):
         ext = os.path.splitext(frames[0].image)[-1]
         count = 0
         
-        format_string = lambda filename, index, ext: os.path.join(tempDir, 'storytime.{0}.{1:06d}{2}'.format(filename, index, ext))
+        format_string = lambda index, ext: os.path.join(tempDir, 'storytime.{0:06d}{1}'.format(index, ext))
+        
         
         for i in range(len(frames)):
             for j in range(frames[i].duration):
                 count += 1
                 imagePath = frames[i].image
-                shutil.copyfile(imagePath, format_string(filename, count, ext))
+                shutil.copyfile(imagePath, format_string(count, ext))
                 
         aud_fmt = self.curAudioRecording.filename
-        img_fmt = os.path.join(tempDir, 'storytime.{0}.%06d{1}'.format(filename, ext))
-        vid_fmt = os.path.join(tempDir, '{0}.mov'.format(filename))
+        img_fmt = os.path.join(tempDir, 'storytime.%06d{0}'.format(ext))
         subprocess.Popen(['ffmpeg', '-r', '24', '-f', 'image2', '-i', img_fmt,'-i', aud_fmt, '-map', '0:0', '-map', '1:0',
-                          '-vcodec', 'libx264', '-acodec', 'mp2', '-preset', 'slow', '-b', '2200k', '-g', '12', vid_fmt]).wait()
+                          '-vcodec', 'libx264', '-acodec', 'mp2', '-preset', 'slow', '-b', '2200k', '-g', '12', filename]).wait()
     
     @property
     def imageCount(self):
