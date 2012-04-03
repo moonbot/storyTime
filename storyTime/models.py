@@ -424,6 +424,12 @@ class StoryTimeModel(QAbstractItemModel):
             data = pickle.load(fp)
         recording = RecordingCollection.fromString(data)
         self.addRecording(recording)
+        
+        # attempt to load audio
+        audioFile = os.path.splitext(filename)[0] + '.wav'
+        if os.path.isfile(audioFile):
+            recording.audio.load(audioFile)
+        
         LOG.info('Loaded recording: {0}'.format(filename))
         # TODO: figure out a better way to encapsulate this functionality
         allImages = sorted(list(set(self.images + recording.frames.images)))
@@ -451,25 +457,26 @@ class StoryTimeModel(QAbstractItemModel):
         
         args = [
             FFMPEG,
-            '-t', len(recording),
-            '-r', self.recordingFps,
+            '-y',
             '-f', 'image2',
             '-i', img_fmt,
-            '-map', '0:0',
-            '-vcodec', 'libx264',
-            '-g', '12',
         ]
-        if recording.audio.hasRecording and False:
+        if recording.audio.hasRecording:
             args += [
                 '-i', recording.audio.filename,
-                '-map', '1:0',
                 '-acodec', 'aac',
-                '-preset', 'slow',
-                '-b', '2200k',
+                '-ab', '256',
             ]
-        args.append(filename)
-        LOG.debug(args)
-        subprocess.Popen([str(a) for a in args])
+        args += [
+            '-r', self.recordingFps,
+            '-vcodec', 'libx264',
+            '-g', '12',
+            '-t', float(recording.duration) / self.recordingFps,
+            filename,
+        ]
+        args = [str(a) for a in args]
+        LOG.debug('ffmpeg command:\n {0}'.format(' '.join(args)))
+        subprocess.Popen(args)
     
     def exportFrameRecordingSequence(self, recording, progress=None):
         """
