@@ -12,6 +12,10 @@ import audio, utils, fcpxml
 import logging
 import math
 import os
+import tempfile
+import shutil
+import pdb
+import subprocess
 import sys
 import pickle
 
@@ -415,7 +419,28 @@ class StoryTimeModel(QAbstractItemModel):
         
     
     def exportMovie(self, filename):
-        pass
+        LOG.debug("copying images to temp for video export")
+        
+        tempDir = tempfile.gettempdir()
+        LOG.debug("tempDir = " + tempDir)
+        
+        frames = self.curFrameRecording.frames
+        ext = os.path.splitext(frames[0].image)[-1]
+        count = 0
+        
+        format_string = lambda index, ext: os.path.join(tempDir, 'storytime.{0:06d}{1}'.format(index, ext))
+        
+        
+        for i in range(len(frames)):
+            for j in range(frames[i].duration):
+                count += 1
+                imagePath = frames[i].image
+                shutil.copyfile(imagePath, format_string(count, ext))
+                
+        aud_fmt = self.curAudioRecording.filename
+        img_fmt = os.path.join(tempDir, 'storytime.%06d{0}'.format(ext))
+        subprocess.Popen(['ffmpeg', '-r', '24', '-f', 'image2', '-i', img_fmt,'-i', aud_fmt, '-map', '0:0', '-map', '1:0',
+                          '-vcodec', 'libx264', '-acodec', 'mp2', '-preset', 'slow', '-b', '2200k', '-g', '12', filename]).wait()
     
     @property
     def imageCount(self):
