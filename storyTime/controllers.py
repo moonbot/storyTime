@@ -138,6 +138,12 @@ class StoryTimeWindow(object):
         self.ui.actionExportMovie.triggered.connect(self.exportMovie)
         self.ui.actionExportForEditing.triggered.connect(self.exportForEditing)
         self.ui.actionImportImages.triggered.connect(self.importImages)
+        self.ui.actionNewRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_N))
+        self.ui.actionOpenRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_O))
+        self.ui.actionSaveRecordingAs.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_S))
+        self.ui.actionExportMovie.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_M))
+        self.ui.actionExportForEditing.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_E))
+        self.ui.actionImportImages.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_I))
     
     def setPrevImageViewVisible(self, visible):
         self.setImageViewVisible('prev', visible)
@@ -223,6 +229,12 @@ class StoryTimeWindow(object):
         if event.key() == Qt.Key_N:
             self.newRecording()
             return True
+        if event.key() == Qt.Key_BracketRight:
+            self.imageSlider.ui.NextImageCheck.toggle()
+            return True
+        if event.key() == Qt.Key_BracketLeft:
+            self.imageSlider.ui.PrevImageCheck.toggle()
+            return True
         
         return False
     
@@ -238,25 +250,23 @@ class StoryTimeWindow(object):
     
     def openRecording(self):
         caption = 'Open Story Time Recording...'
-        return self.featureNotDone()
         f = QFileDialog.getOpenFileName(
             self.ui,
             caption=caption,
             filter='XML files (*.xml)',
-        )
-        LOG.debug('Opening story time file: {0}'.format(f))
+        )[0]
+        self._model.openRecording(f)
     
     def saveRecordingAs(self):
         caption = 'Save Story Time Recording...'
-        return self.featureNotDone()
-        file = self.getSaveDestination(caption)
-        if file is not None:
-            self._model.saveRecording(file)
+        f = self.getSaveDestination(caption)
+        if f is not None:
+            self._model.saveRecording(f)
+            utils.openDir(os.path.dirname(f))
     
     def exportMovie(self):
         caption = 'Export Movie...'
-        return self.featureNotDone()
-        file = self.getSaveDestination(caption)
+        file = self.getSaveDestination(caption, filter='MOV files (*.mov)')
         if file is not None:
             self._model.exportMovie(file)
     
@@ -282,6 +292,7 @@ class StoryTimeWindow(object):
         file = self.getSaveDestination(caption)
         if file is not None:
             self._model.exportRecording(file, platform)
+            utils.openDir(os.path.dirname(file))
     
     def importImages(self):
         caption = 'Import Image(s)'
@@ -387,6 +398,7 @@ class ImageSlider(QWidget):
         # install the event filter on all appropriate objects
         self.ui.ImageSlider.installEventFilter(filter)
         self.ui.CacheImagesBtn.installEventFilter(filter)
+        self.ui.ClearCacheBtn.installEventFilter(filter)
 
 
 
@@ -431,6 +443,7 @@ class TimeSlider(QWidget):
     
     def setSliderMaximum(self, value):
         self.ui.TimeSlider.setMaximum(value)
+        
     def getSliderMaximum(self):
         return self.ui.TimeSlider.maximum()
     sliderMaximum = Property('int', getSliderMaximum, setSliderMaximum)
@@ -439,7 +452,7 @@ class TimeSlider(QWidget):
         self._dataMapper.submit()
     
     def openAudioFolder(self):
-        dir_ = self._model.getAudioDir()
+        dir_ = self._model.getStoryTimePath()
         if os.path.isdir(dir_):
             utils.openDir(dir_)
     

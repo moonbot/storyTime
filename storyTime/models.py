@@ -17,6 +17,7 @@ import shutil
 import pdb
 import subprocess
 import sys
+import pickle
 
 LOG = logging.getLogger('storyTime.models')
 
@@ -213,12 +214,17 @@ class StoryTimeModel(QAbstractItemModel):
                 self._audioEnabled = value
     audioEnabled = property(getAudioEnabled, setAudioEnabled)
     
-    def getAudioDir(self):
-        return os.path.expanduser('~/storyTime/audio')
+    def getStoryTimePath(self):
+        return os.path.expanduser('~/storyTime')
     
     def getAudioPath(self, name):
         filename = utils.normalizeFilename('{name}_{date}'.format(name=name, date=utils.timeString()))
-        path = os.path.join(self.getAudioDir(), filename)
+        path = os.path.join(self.getStoryTimePath(), filename)
+        return path
+    
+    def getRecordingPath(self, name):
+        filename = utils.normalizeFilename('{name}_{date}'.format(name=name, date=utils.timeString()))
+        path = os.path.join(self.getStoryTimePath(), filename)
         return path
     
     def moveAudioRecording(self, src, dst, recording):
@@ -281,7 +287,10 @@ class StoryTimeModel(QAbstractItemModel):
         new.name = self.getNewRecordingName()
         new.audio.inputDeviceIndex = self.audioInputDeviceIndex
         new.audio.outputDeviceIndex = self.audioOutputDeviceIndex
-        self.recordings.append(new)
+        self.addRecording(new)
+    
+    def addRecording(self, recording):
+        self.recordings.append(recording)
         self.loadRecording(self.recordingCount - 1)
     
     def deleteRecording(self, index):
@@ -389,15 +398,27 @@ class StoryTimeModel(QAbstractItemModel):
         xml = self.toXml(platform)
         with open(filename, 'wb') as fp:
             fp.write(xml)
-        utils.openDir(os.path.dirname(filename))
+    
+    def openRecording(self, filename=None):
+        if not os.path.isfile(filename):
+            LOG.warning('cannot open file, does not exist: {0}'.format(filename))
+            return
+        with open(filename, 'rb') as fp:
+            data = pickle.load(fp)
+        recording = RecordingCollection.fromString(data)
+        self.addRecording(recording)
+        # TODO: figure out a better way to encapsulate this functionality
+        allImages = sorted(list(set(self.images + recording.frames.images)))
+        self.images = allImages
     
     def saveRecording(self, filename=None):
-        # TODO: serialize self.curRecording (the RecordingCollection) and save to file
-        # data = self.curRecording.serialize()
-        # etc...
-        
+        # force extension
+        filename = '{0}.xml'.format(os.path.splitext(filename)[0])
         # if filename is none should try to use lastSavedFilename for the current recording collection
-        pass
+        with open(filename, 'wb') as fp:
+            pickle.dump(self.curRecording.toString(), fp)
+        LOG.debug('Saved recording to {0}'.format(filename))
+        
     
     def exportMovie(self, filename):
         LOG.debug("copying images to temp for video export")
@@ -409,19 +430,19 @@ class StoryTimeModel(QAbstractItemModel):
         ext = os.path.splitext(frames[0].image)[-1]
         count = 0
         
-        format_string = lambda filename, index, ext: os.path.join(tempDir, 'storytime.{0}.{1:06d}{2}'.format(filename, index, ext))
+        format_string = lambda index, ext: os.path.join(tempDir, 'storytime.{0:06d}{1}'.format(index, ext))
+        
         
         for i in range(len(frames)):
             for j in range(frames[i].duration):
                 count += 1
                 imagePath = frames[i].image
-                shutil.copyfile(imagePath, format_string(filename, count, ext))
+                shutil.copyfile(imagePath, format_string(count, ext))
                 
         aud_fmt = self.curAudioRecording.filename
-        img_fmt = os.path.join(tempDir, 'storytime.{0}.%06d{1}'.format(filename, ext))
-        vid_fmt = os.path.join(tempDir, '{0}.mov'.format(filename))
+        img_fmt = os.path.join(tempDir, 'storytime.%06d{0}'.format(ext))
         subprocess.Popen(['ffmpeg', '-r', '24', '-f', 'image2', '-i', img_fmt,'-i', aud_fmt, '-map', '0:0', '-map', '1:0',
-                          '-vcodec', 'libx264', '-acodec', 'mp2', '-preset', 'slow', '-b', '2200k', '-g', '12', vid_fmt]).wait()
+                          '-vcodec', 'libx264', '-acodec', 'mp2', '-preset', 'slow', '-b', '2200k', '-g', '12', filename]).wait()
     
     @property
     def imageCount(self):
@@ -434,6 +455,10 @@ class StoryTimeModel(QAbstractItemModel):
     @property
     def images(self):
         return self.imageCollection.images
+    @images.setter
+    def images(self, value):
+        self.imageCollection.images = value
+        self.imageDataChanged()
     
     @property
     def curImageIndex(self):
@@ -544,8 +569,10 @@ class StoryTimeModel(QAbstractItemModel):
                 # recording has just stopped. record the last frame
                 self.recordCurrentFrame()
                 if self._audioEnabled:
+                    # TODO: save the recording and audio (xml, wav) to getStoryTimePath
                     self.curAudioRecording.stop()
                     self.curAudioRecording.save(self.getAudioPath(self.curRecording.name))
+                self.saveRecording(self.getRecordingPath(self.curRecording.name))
             else:
                 if len(self.curFrameRecording) != 0:
                     # start a new recording cause this ones already been used
@@ -574,9 +601,6 @@ class StoryTimeModel(QAbstractItemModel):
             return True
             
         elif m == Mappings.recordingName:
-            # move the current audio file, if one exists
-            if self.curAudioRecording.hasRecording:
-                self.moveAudioRecording(self.curAudioRecording.filename, self.getAudioPath(value), self.curAudioRecording)
             self.curRecording.name = value
             self.mappingChanged(Mappings.recordingName)
             return True
