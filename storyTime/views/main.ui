@@ -107,20 +107,15 @@
     <property name="title">
      <string>File</string>
     </property>
-    <widget class="QMenu" name="menuRecent">
-     <property name="title">
-      <string>Recent</string>
-     </property>
-    </widget>
     <addaction name="actionNewRecording"/>
     <addaction name="actionOpenRecording"/>
-    <addaction name="menuRecent"/>
-    <addaction name="actionSaveRecording"/>
     <addaction name="actionSaveRecordingAs"/>
+    <addaction name="actionExportMovie"/>
+    <addaction name="actionExportForEditing"/>
+    <addaction name="separator"/>
+    <addaction name="actionOpenStoryTimeDir"/>
     <addaction name="separator"/>
     <addaction name="actionImportImages"/>
-    <addaction name="actionExportForFCP"/>
-    <addaction name="actionExportForPremiere"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="title">
@@ -269,9 +264,9 @@
     <string>Save As...</string>
    </property>
   </action>
-  <action name="actionExportForFCP">
+  <action name="actionExportForEditing">
    <property name="text">
-    <string>Export for Final Cut Pro...</string>
+    <string>Export for Editing...</string>
    </property>
   </action>
   <action name="actionExportForPremiere">
@@ -297,6 +292,16 @@
   <action name="actionBuilt_In_Microphone">
    <property name="text">
     <string>Built-In Microphone</string>
+   </property>
+  </action>
+  <action name="actionOpenStoryTimeDir">
+   <property name="text">
+    <string>Open Story Time Folder</string>
+   </property>
+  </action>
+  <action name="actionExportMovie">
+   <property name="text">
+    <string>Export Movie...</string>
    </property>
   </action>
  </widget>

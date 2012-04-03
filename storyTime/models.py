@@ -12,6 +12,7 @@ import audio, utils, fcpxml
 import logging
 import math
 import os
+import sys
 
 LOG = logging.getLogger('storyTime.models')
 
@@ -354,17 +355,18 @@ class StoryTimeModel(QAbstractItemModel):
         LOG.debug('Clearing cache {0}'.format(self.pixmapCache.count))
         self.pixmapCache.clear()
     
-    def toXml(self, platform='win'):
+    def toXml(self, platform=None):
         """
-        Export the current application state to a Final Cut Pro XML file.
+        Export the current recording collection to an editorial xml file.
         
-        `caption` -- the caption of the file browsing dialog
-        `platform` -- the current platform for the export
-            mac = final cut
-            win = premiere
+        `platform` -- the target platform for which we are exporting.
+            this is where path mapping will be taken into account.
+        
         """
         frameImages = [f.image for f in self.curFrameRecording.frames]
         frameDurations = [f.duration for f in self.curFrameRecording.frames]
+        if platform is None:
+            platform = sys.platform
         
         if len(self.curFrameRecording) > 0:
             fcpkw = {
@@ -373,13 +375,15 @@ class StoryTimeModel(QAbstractItemModel):
                 'audioPath':self.curAudioRecording.filename,
                 'fps':self.recordingFps,
                 'ntsc':(self.recordingFps % 30 == 0),
-                'OS':platform,
+                'platform':platform,
             }
             return fcpxml.FcpXml(**fcpkw).toString()
     
     def exportRecording(self, filename, platform='win'):
         xml = self.toXml(platform)
-        # TODO: write the xml to the given filename
+        with open(filename, 'wb') as fp:
+            fp.write(xml)
+        utils.openDir(os.path.dirname(filename))
     
     def saveRecording(self, filename=None):
         # TODO: serialize self.curRecording (the RecordingCollection) and save to file
@@ -387,6 +391,9 @@ class StoryTimeModel(QAbstractItemModel):
         # etc...
         
         # if filename is none should try to use lastSavedFilename for the current recording collection
+        pass
+    
+    def exportMovie(self, filename):
         pass
     
     @property
@@ -512,9 +519,6 @@ class StoryTimeModel(QAbstractItemModel):
                 if self._audioEnabled:
                     self.curAudioRecording.stop()
                     self.curAudioRecording.save(self.getAudioPath(self.curRecording.name))
-                
-                # print some xml
-                LOG.debug(self.toXml())
             else:
                 if len(self.curFrameRecording) != 0:
                     # start a new recording cause this ones already been used

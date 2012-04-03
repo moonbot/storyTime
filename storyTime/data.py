@@ -215,6 +215,8 @@ class RecordingCollection(object):
     def __repr__(self):
         return '<RecordingCollection {0!r} {1!r} {2!r}>'.format(self.name, self.frames, self.audio)
     
+    def __len__(self):
+        return len(self.frames)
     
     @staticmethod
     def fromString(string):
