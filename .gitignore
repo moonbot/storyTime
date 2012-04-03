@@ -1,6 +1,6 @@
 .DS_Store*
 Thumbs.db
-src/storyTime.log
+storyTime*.log*
 /.project
 /.settings
 /.pydevproject

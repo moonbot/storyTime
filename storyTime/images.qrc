@@ -1,5 +1,7 @@
 <RCC>
   <qresource>
     <file>images/mainIcon.png</file>
+    <file>images/playBtn.png</file>
+    <file>images/recordBtn.png</file>
   </qresource>
 </RCC>

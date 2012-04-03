@@ -63,14 +63,14 @@ class FcpXml(object):
         'displayformat':'NDF',
         'width':'0',
         'height':'0',
-        'os':'win',
+        'platform':'win',
         'videowidthFCP':'1280',
         'videoheightFCP':'720',
         'videowidthPremiere':'720',
         'videoheightPremiere':'480'
     }
     
-    def __init__(self, name = '', images = [], audioPath = '', fps=30, ntsc=True, OS='win'):
+    def __init__(self, name = '', images = [], audioPath = '', fps=30, ntsc=True, platform='win'):
         """
         TODO:
         -Turn this class into a function with child functions instead
@@ -87,10 +87,10 @@ class FcpXml(object):
         self.xml = imp.createDocument(None, 'xmeml', doctype)
         self.images = images
         self.audioPath = audioPath
-        self.includeAudio = os.path.exists(audioPath)
+        self.includeAudio = audioPath is not None and os.path.exists(audioPath)
         self.settings['name'] = name
         self.settings['fps'] = str(fps)
-        self.settings['os'] = OS
+        self.settings['platform'] = platform
         if ntsc:
             self.settings['ntsc'] = 'TRUE'
         else:
@@ -104,7 +104,7 @@ class FcpXml(object):
         self.settings['height'] = str(size[1])
         self.build()
         
-    def getStr(self):
+    def toString(self):
         return self.xml.toprettyxml()
             
     def build(self):
@@ -172,14 +172,11 @@ class FcpXml(object):
         format = self.addChild('format', video)
         sc = self.addChild('samplecharacteristics', format)
         self.addRate(sc)
-        if self.settings['os'] == 'win':
-            self.addChild('width', sc, self.settings['width'])
-            self.addChild('height', sc, self.settings['height'])
-        elif self.settings['os'] == 'mac':
+        if self.settings['platform'] in ('win32', 'darwin'):
             self.addChild('width', sc, self.settings['width'])
             self.addChild('height', sc, self.settings['height'])
         else:
-            raise FcpXmlError('Not a valid os')
+            raise FcpXmlError('Not a valid platform: {0}'.format(self.settings['platform']))
         self.addChild('anamorphic', sc, 'FALSE')
         self.addChild('pixelaspectratio', sc, 'NTSC-601')
         self.addChild('fielddominance', sc, 'none')
@@ -294,16 +291,17 @@ class FcpXml(object):
             return img.size
         
     def convertPath(self, path):
-        if self.settings['os'] == 'win':
+        if self.settings['platform'] == 'win32':
             return self.convertPathWin(path)
-        elif self.settings['os'] == 'mac':
+        elif self.settings['platform'] == 'darwin':
             return self.convertPathMac(path)
         else:
-            raise FcpXmlError('Not a valid os')
+            raise FcpXmlError('Cannot map paths for platform: {0}'.format(self.settings['platform']))
         
     def convertPathWin(self, path):
         return 'file://localhost/' + path.replace(':', '%3a').replace(' ', '%20').replace('\\', '/')
     
     def convertPathMac(self, path):
-        LOG.warning('FcpXml.convertPathMac has not been implemented yet.')
-        return convertPathWin(path)
+        LOG.warning('not yet implemented')
+        return self.convertPathWin(path)
+
