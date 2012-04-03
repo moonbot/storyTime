@@ -9,6 +9,8 @@ qtconf = '[PATHS]\nBinaries=.\nPlugins=plugins'
 ico = 'storyTime/images/StoryTime.ico'
 uiDir = 'storyTime/views'
 uiFiles = [os.path.join(uiDir, ui) for ui in os.listdir(uiDir)]
+imgDir = 'storyTime/images'
+imgFiles = [os.path.join(imgDir, i) for i in os.listdir(imgDir)]
 
 setup(
     options = {'py2exe': {
@@ -20,6 +22,7 @@ setup(
     },
     data_files = [
         ('views', uiFiles),
+        ('images', imgFiles),
     ],
     windows = [{
         'dest_base':'StoryTime',
