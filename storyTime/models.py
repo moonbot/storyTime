@@ -86,7 +86,7 @@ class PixmapCache(object):
     
     def getPixmap(self, path):
         if not isinstance(path, (str, unicode)):
-            return
+            return QPixmap()
         if os.path.isfile(path):
             if self.has_key(path):
                 # pixmap already loaded
@@ -96,7 +96,7 @@ class PixmapCache(object):
                 pixmap = QPixmap(path)
                 self[path] = pixmap
                 return pixmap
-        return None
+        return QPixmap()
     
     def normKey(self, path):
         return os.path.normpath(path).lower()
@@ -526,11 +526,15 @@ class StoryTimeModel(QAbstractItemModel):
     
     @property
     def curImageIndexLabel(self):
-        return '{1:0{0.imagePadding}}/{0.imageCount}'.format(self, self.curImageIndex + 1)
+        index = self.curImageIndex
+        if self.imageCount > 0:
+            index += 1
+        return '{1:0{0.imagePadding}}/{0.imageCount}'.format(self, index)
     
     @property
     def curImagePath(self):
-        return self.imageCollection.current()
+        path = self.imageCollection.current()
+        return path if path is not None else ''
     
     @property
     def curImage(self):
@@ -559,6 +563,10 @@ class StoryTimeModel(QAbstractItemModel):
         self.imageDataChanged()
         self.recordingDataChanged()
     
+    def clearImages(self):
+        self.images = []
+        self.pixmapCache.clear()
+        self.imageDataChanged()
     
     # qt model methods
     

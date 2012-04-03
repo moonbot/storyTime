@@ -361,7 +361,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QProgressBar" name="progressBar">
+         <widget class="QProgressBar" name="TimeSliderProgress">
           <property name="maximumSize">
            <size>
             <width>16777215</width>
@@ -394,7 +394,7 @@
   <connection>
    <sender>TimeSlider</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>progressBar</receiver>
+   <receiver>TimeSliderProgress</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -410,7 +410,7 @@
   <connection>
    <sender>TimeSlider</sender>
    <signal>rangeChanged(int,int)</signal>
-   <receiver>progressBar</receiver>
+   <receiver>TimeSliderProgress</receiver>
    <slot>setRange(int,int)</slot>
    <hints>
     <hint type="sourcelabel">
