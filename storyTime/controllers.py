@@ -258,6 +258,7 @@ class StoryTimeWindow(object):
         f = self.getSaveDestination(caption)
         if f is not None:
             self._model.saveRecording(f)
+            utils.openDir(os.path.dirname(f))
     
     def exportMovie(self):
         caption = 'Export Movie...'
@@ -288,6 +289,7 @@ class StoryTimeWindow(object):
         file = self.getSaveDestination(caption)
         if file is not None:
             self._model.exportRecording(file, platform)
+            utils.openDir(os.path.dirname(file))
     
     def importImages(self):
         caption = 'Import Image(s)'

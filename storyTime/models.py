@@ -218,6 +218,11 @@ class StoryTimeModel(QAbstractItemModel):
         path = os.path.join(self.getStoryTimePath(), filename)
         return path
     
+    def getRecordingPath(self, name):
+        filename = utils.normalizeFilename('{name}_{date}'.format(name=name, date=utils.timeString()))
+        path = os.path.join(self.getStoryTimePath(), filename)
+        return path
+    
     def moveAudioRecording(self, src, dst, recording):
         if os.path.isfile(src):
             os.remove(src)
@@ -387,7 +392,6 @@ class StoryTimeModel(QAbstractItemModel):
         xml = self.toXml(platform)
         with open(filename, 'wb') as fp:
             fp.write(xml)
-        utils.openDir(os.path.dirname(filename))
     
     def openRecording(self, filename=None):
         if not os.path.isfile(filename):
@@ -402,11 +406,12 @@ class StoryTimeModel(QAbstractItemModel):
         self.images = allImages
     
     def saveRecording(self, filename=None):
+        # force extension
+        filename = '{0}.xml'.format(os.path.splitext(filename)[0])
         # if filename is none should try to use lastSavedFilename for the current recording collection
         with open(filename, 'wb') as fp:
             pickle.dump(self.curRecording.toString(), fp)
         LOG.debug('Saved recording to {0}'.format(filename))
-        utils.openDir(os.path.dirname(filename))
         
     
     def exportMovie(self, filename):
@@ -540,6 +545,7 @@ class StoryTimeModel(QAbstractItemModel):
                     # TODO: save the recording and audio (xml, wav) to getStoryTimePath
                     self.curAudioRecording.stop()
                     self.curAudioRecording.save(self.getAudioPath(self.curRecording.name))
+                self.saveRecording(self.getRecordingPath(self.curRecording.name))
             else:
                 if len(self.curFrameRecording) != 0:
                     # start a new recording cause this ones already been used
@@ -568,9 +574,6 @@ class StoryTimeModel(QAbstractItemModel):
             return True
             
         elif m == Mappings.recordingName:
-            # move the current audio file, if one exists
-            if self.curAudioRecording.hasRecording:
-                self.moveAudioRecording(self.curAudioRecording.filename, self.getAudioPath(value), self.curAudioRecording)
             self.curRecording.name = value
             self.mappingChanged(Mappings.recordingName)
             return True
