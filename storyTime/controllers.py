@@ -138,6 +138,12 @@ class StoryTimeWindow(object):
         self.ui.actionExportMovie.triggered.connect(self.exportMovie)
         self.ui.actionExportForEditing.triggered.connect(self.exportForEditing)
         self.ui.actionImportImages.triggered.connect(self.importImages)
+        self.ui.actionNewRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_N))
+        self.ui.actionOpenRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_O))
+        self.ui.actionSaveRecordingAs.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_S))
+        self.ui.actionExportMovie.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_M))
+        self.ui.actionExportForEditing.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_E))
+        self.ui.actionImportImages.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_I))
     
     def setPrevImageViewVisible(self, visible):
         self.setImageViewVisible('prev', visible)
@@ -218,6 +224,12 @@ class StoryTimeWindow(object):
             return True
         if event.key() == Qt.Key_N:
             self.newRecording()
+            return True
+        if event.key() == Qt.Key_BracketRight:
+            self.imageSlider.ui.NextImageCheck.toggle()
+            return True
+        if event.key() == Qt.Key_BracketLeft:
+            self.imageSlider.ui.PrevImageCheck.toggle()
             return True
         
         return False
@@ -381,6 +393,7 @@ class ImageSlider(QWidget):
         # install the event filter on all appropriate objects
         self.ui.ImageSlider.installEventFilter(filter)
         self.ui.CacheImagesBtn.installEventFilter(filter)
+        self.ui.ClearCacheBtn.installEventFilter(filter)
 
 
 
@@ -434,7 +447,7 @@ class TimeSlider(QWidget):
         self._dataMapper.submit()
     
     def openAudioFolder(self):
-        dir_ = self._model.getAudioDir()
+        dir_ = self._model.getStoryTimePath()
         if os.path.isdir(dir_):
             utils.openDir(dir_)
     
