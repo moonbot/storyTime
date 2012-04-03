@@ -326,30 +326,36 @@ class StoryTimeModel(QAbstractItemModel):
     
     def loadPaths(self, paths):
         """
-        Process and load images corresponding to the given paths.
-        Possible options:
+        Process and load images/recordings corresponding to the given paths.
         
-        Single file: xml - open, all else - import directory
-        Directory: import directory
-        Multiple files: add files exactly
+        directories / images - load image(s)
+            Directory: import directory
+            Single file: import image's directory (TODO: load sequence)
+            Multiple files: add files exactly
+        .xml - load recording(s)
+        
         """
-        if len(paths) > 1:
-            self.imageCollection.images = sorted(paths)
-        else:
-            path = paths[0]
-            ext = os.path.splitext(path)[1]
-            if ext == '.xml':
-                # TODO: load the xml
-                pass
-            elif os.path.isdir(path):
-                self.imageCollection.loadDir(path)
+        xmls = [p for p in paths if os.path.splitext(p)[-1] in ['.xml']]
+        images = [p for p in paths if p not in xmls]
+        # handle images first
+        if len(images) == 1:
+            image = images[0]
+            if os.path.isdir(image):
+                self.imageCollection.loadDir(image)
             else:
-                # TODO: replace this with loading the image sequence
-                self.imageCollection.loadDir(os.path.dirname(path))
+                self.imageCollection.loadDir(os.path.dirname(image))
+        elif len(images) > 1:
+            self.imageCollection.images = sorted(images)
         # update the recording's name, if applicable
         self.updateRecordingName()
         # emit signals
         self.imageDataChanged()
+        
+        # handle recordings
+        for xml in xmls:
+            self.openRecording(xml)
+        self.recordingDataChanged()
+    
     
     def updateRecordingName(self):
         if self.curRecording.name.startswith('Story Time Recording'):
@@ -398,6 +404,7 @@ class StoryTimeModel(QAbstractItemModel):
         xml = self.toXml(platform)
         with open(filename, 'wb') as fp:
             fp.write(xml)
+        LOG.info('Exported recording: {0}'.format(filename))
     
     def openRecording(self, filename=None):
         if not os.path.isfile(filename):
@@ -407,6 +414,7 @@ class StoryTimeModel(QAbstractItemModel):
             data = pickle.load(fp)
         recording = RecordingCollection.fromString(data)
         self.addRecording(recording)
+        LOG.info('Loaded recording: {0}'.format(filename))
         # TODO: figure out a better way to encapsulate this functionality
         allImages = sorted(list(set(self.images + recording.frames.images)))
         self.images = allImages
@@ -417,7 +425,7 @@ class StoryTimeModel(QAbstractItemModel):
         # if filename is none should try to use lastSavedFilename for the current recording collection
         with open(filename, 'wb') as fp:
             pickle.dump(self.curRecording.toString(), fp)
-        LOG.debug('Saved recording to {0}'.format(filename))
+        LOG.info('Saved recording to {0}'.format(filename))
         
     
     def exportMovie(self, filename):
