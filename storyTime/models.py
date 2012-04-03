@@ -302,8 +302,10 @@ class StoryTimeModel(QAbstractItemModel):
         outTime = self.curFrameRecording.outTime(recordingIndex - 1)
         image = self.images[index]
         duration = self.curTime - outTime
-        LOG.debug('{1:>4} - {2:<4}: {0}'.format(os.path.basename(image), outTime, outTime + duration))
-        # if duration is 0, check and replace the frame at recordingIndex
+        if duration == 0:
+            LOG.warning('skipping frame recording, duration is 0: {0}. outTime {1} curTime {2}'.format(image, outTime, self.curTime))
+            return
+        LOG.debug('index: {3}, {1:>4} - {2:<4}: {0}'.format(os.path.basename(image), outTime, outTime + duration, recordingIndex))
         self.curFrameRecording.insert(recordingIndex, image, duration)
     
     

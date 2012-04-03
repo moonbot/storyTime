@@ -193,11 +193,15 @@ class StoryTimeWindow(object):
     def keyPressEvent(self, event):
         # set the image index data the same way a mapping would
         if event.key() in (Qt.Key_Space, Qt.Key_Period, Qt.Key_Right, Qt.Key_Down):
+            # update time and frame
+            self.timeSlider.updateTime()
             index = self._model.mappingIndex(Mappings.curImageIndex)
             value = self._model.curImageIndex + 1
             self._model.setData(index, value)
             return True
         if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left, Qt.Key_Up):
+            # update time and frame
+            self.timeSlider.updateTime()
             index = self._model.mappingIndex(Mappings.curImageIndex)
             value = self._model.curImageIndex - 1
             self._model.setData(index, value)
@@ -401,7 +405,7 @@ class TimeSlider(QWidget):
         # used to keep track of playback time
         self.time = QElapsedTimer()
         self.timer = QTimer()
-        self.timer.timerEvent = self.timerEvent
+        self.timer.timerEvent = self.updateTime
         
         # add context menu to audio
         action = QAction('Open Audio Folder...', self.ui)
@@ -526,7 +530,9 @@ class TimeSlider(QWidget):
             self.ui.TimeSlider.setSliderPosition(self._model.recordingDuration)
             self._dataMapper.submit()
     
-    def timerEvent(self, event):
+    def updateTime(self, event=None):
+        if not (self.isPlaying or self.isRecording):
+            return
         sec = self.time.elapsed() * 0.001
         frames = int(sec * self._model.recordingFps)
         self.ui.TimeSlider.setSliderPosition(frames)
