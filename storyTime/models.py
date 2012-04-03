@@ -29,6 +29,8 @@ Mappings = utils.enum(
     'end',
 )
 
+FFMPEG = 'ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg'
+
 
 class PixmapCache(object):
     def __init__(self):
@@ -318,8 +320,10 @@ class StoryTimeModel(QAbstractItemModel):
         outTime = self.curFrameRecording.outTime(recordingIndex - 1)
         image = self.images[index]
         duration = self.curTime - outTime
-        LOG.debug('{1:>4} - {2:<4}: {0}'.format(os.path.basename(image), outTime, outTime + duration))
-        # if duration is 0, check and replace the frame at recordingIndex
+        if duration == 0:
+            LOG.warning('skipping frame recording, duration is 0: {0}. outTime {1} curTime {2}'.format(image, outTime, self.curTime))
+            return
+        LOG.debug('index: {3}, {1:>4} - {2:<4}: {0}'.format(os.path.basename(image), outTime, outTime + duration, recordingIndex))
         self.curFrameRecording.insert(recordingIndex, image, duration)
     
     
@@ -327,30 +331,36 @@ class StoryTimeModel(QAbstractItemModel):
     
     def loadPaths(self, paths):
         """
-        Process and load images corresponding to the given paths.
-        Possible options:
+        Process and load images/recordings corresponding to the given paths.
         
-        Single file: xml - open, all else - import directory
-        Directory: import directory
-        Multiple files: add files exactly
+        directories / images - load image(s)
+            Directory: import directory
+            Single file: import image's directory (TODO: load sequence)
+            Multiple files: add files exactly
+        .xml - load recording(s)
+        
         """
-        if len(paths) > 1:
-            self.imageCollection.images = sorted(paths)
-        else:
-            path = paths[0]
-            ext = os.path.splitext(path)[1]
-            if ext == '.xml':
-                # TODO: load the xml
-                pass
-            elif os.path.isdir(path):
-                self.imageCollection.loadDir(path)
+        xmls = [p for p in paths if os.path.splitext(p)[-1] in ['.xml']]
+        images = [p for p in paths if p not in xmls]
+        # handle images first
+        if len(images) == 1:
+            image = images[0]
+            if os.path.isdir(image):
+                self.imageCollection.loadDir(image)
             else:
-                # TODO: replace this with loading the image sequence
-                self.imageCollection.loadDir(os.path.dirname(path))
+                self.imageCollection.loadDir(os.path.dirname(image))
+        elif len(images) > 1:
+            self.imageCollection.images = sorted(images)
         # update the recording's name, if applicable
         self.updateRecordingName()
         # emit signals
         self.imageDataChanged()
+        
+        # handle recordings
+        for xml in xmls:
+            self.openRecording(xml)
+        self.recordingDataChanged()
+    
     
     def updateRecordingName(self):
         if self.curRecording.name.startswith('Story Time Recording'):
@@ -371,7 +381,7 @@ class StoryTimeModel(QAbstractItemModel):
         LOG.debug('Clearing cache {0}'.format(self.pixmapCache.count))
         self.pixmapCache.clear()
     
-    def toXml(self, platform=None, index):
+    def toXml(self, platform=None, index=None):
         """
         Export the current recording collection to an editorial xml file.
         
@@ -379,6 +389,8 @@ class StoryTimeModel(QAbstractItemModel):
             this is where path mapping will be taken into account.
         
         """
+        if index is None:
+            index = self.recordingIndex
         recording = self.recordings[index]
         frameImages = [f.image for f in recording.frames.frames]
         frameDurations = [f.duration for f in recording.frames.frames]
@@ -402,6 +414,7 @@ class StoryTimeModel(QAbstractItemModel):
         xml = self.toXml(platform, index)
         with open(filename, 'wb') as fp:
             fp.write(xml)
+        LOG.info('Exported recording: {0}'.format(filename))
     
     def openRecording(self, filename=None):
         if not os.path.isfile(filename):
@@ -411,6 +424,7 @@ class StoryTimeModel(QAbstractItemModel):
             data = pickle.load(fp)
         recording = RecordingCollection.fromString(data)
         self.addRecording(recording)
+        LOG.info('Loaded recording: {0}'.format(filename))
         # TODO: figure out a better way to encapsulate this functionality
         allImages = sorted(list(set(self.images + recording.frames.images)))
         self.images = allImages
@@ -427,30 +441,45 @@ class StoryTimeModel(QAbstractItemModel):
         
     
     def exportMovie(self, filename, index=None):
-        LOG.debug("copying images to temp for video export")
         if index is None:
             index = self.recordingIndex
         
-        tempDir = tempfile.gettempdir()
-        LOG.debug("tempDir = " + tempDir)
+        recording = self.recordings[index]
+        # copy all the images into a sequence
+        tempDir = os.path.join(tempfile.gettempdir(), 'storyTimeMovieExport')
+        if not os.path.isdir(tempDir):
+            os.makedirs(tempDir)
+        LOG.debug('copying images to temp directory for video export: {0}'.format(tempDir))
+        frames = recording.frames.frames
+        ext = os.path.splitext(frames[0].image)[-1].strip('.')
         
-        frames = self.recordings[index].frames.frames
-        ext = os.path.splitext(frames[0].image)[-1]
-        count = 0
+        imgFmt = os.path.join(tempDir, 'storytime.{0:06d}.{1}')
+        LOG.debug(enumerate([f.image for f in frames for d in range(f.duration)]))
+        for i, image in enumerate([f.image for f in frames for d in range(f.duration)]):
+            shutil.copyfile(image, imgFmt.format(i, ext))
         
-        format_string = lambda index, ext: os.path.join(tempDir, 'storytime.{0:06d}{1}'.format(index, ext))
-        
-        
-        for i in range(len(frames)):
-            for j in range(frames[i].duration):
-                count += 1
-                imagePath = frames[i].image
-                shutil.copyfile(imagePath, format_string(count, ext))
-                
-        aud_fmt = self.curAudioRecording.filename
-        img_fmt = os.path.join(tempDir, 'storytime.%06d{0}'.format(ext))
-        subprocess.Popen(['ffmpeg', '-r', '24', '-f', 'image2', '-i', img_fmt,'-i', aud_fmt, '-map', '0:0', '-map', '1:0',
-                          '-vcodec', 'libx264', '-acodec', 'mp2', '-preset', 'slow', '-b', '2200k', '-g', '12', filename]).wait()
+        img_fmt = os.path.join(tempDir, 'storytime.%06d.{0}'.format(ext))
+        args = [
+            FFMPEG,
+            '-t', len(frames),
+            '-r', self.recordingFps,
+            '-f', 'image2',
+            '-i', img_fmt,
+            '-map', '0:0',
+            '-vcodec', 'libx264',
+            '-g', '12',
+        ]
+        if recording.audio.hasRecording and False:
+            args += [
+                '-i', recording.audio.filename,
+                '-map', '1:0',
+                '-acodec', 'aac',
+                '-preset', 'slow',
+                '-b', '2200k',
+            ]
+        args.append(filename)
+        LOG.debug(args)
+        subprocess.Popen([str(a) for a in args])
     
     @property
     def imageCount(self):

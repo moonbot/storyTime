@@ -63,7 +63,6 @@ class EventEater(QObject):
             paths = []
             for url in event.mimeData().urls():
                 paths.append(str(url.toLocalFile()))
-            # tell the model to load the given paths
             self.handlePaths(paths)
         return True
 
@@ -122,7 +121,7 @@ class StoryTimeWindow(object):
         # setup key press eater
         self.eventEater = EventEater()
         self.eventEater.keyPressEvent = self.keyPressEvent
-        self.eventEater.handlePaths = self._model.loadPaths
+        self.eventEater.handlePaths = self.loadPaths
         self.ui.installEventFilter(self.eventEater)
         self.imageSlider.installEventFilter(self.eventEater)
         self.timeSlider.installEventFilter(self.eventEater)
@@ -137,6 +136,7 @@ class StoryTimeWindow(object):
         self.ui.actionSaveRecordingAs.triggered.connect(self.saveRecordingAs)
         self.ui.actionExportMovie.triggered.connect(self.exportMovie)
         self.ui.actionExportForEditing.triggered.connect(self.exportForEditing)
+        self.ui.actionOpenStoryTimeDir.triggered.connect(self.openStoryTimePath)
         self.ui.actionImportImages.triggered.connect(self.importImages)
         self.ui.actionNewRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_N))
         self.ui.actionOpenRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_O))
@@ -193,17 +193,18 @@ class StoryTimeWindow(object):
         index = self._model.mappingIndex(Mappings.audioInputDeviceIndex)
         self._model.setData(index, value)
     
-    def loadPaths(self, paths):
-        self._model.loadPaths(paths)
-    
     def keyPressEvent(self, event):
         # set the image index data the same way a mapping would
         if event.key() in (Qt.Key_Space, Qt.Key_Period, Qt.Key_Right, Qt.Key_Down):
+            # update time and frame
+            self.timeSlider.updateTime()
             index = self._model.mappingIndex(Mappings.curImageIndex)
             value = self._model.curImageIndex + 1
             self._model.setData(index, value)
             return True
         if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left, Qt.Key_Up):
+            # update time and frame
+            self.timeSlider.updateTime()
             index = self._model.mappingIndex(Mappings.curImageIndex)
             value = self._model.curImageIndex - 1
             self._model.setData(index, value)
@@ -240,6 +241,14 @@ class StoryTimeWindow(object):
         self.ui.actionExportMovie.setEnabled(hasRecording)
         self.ui.actionExportForEditing.setEnabled(hasRecording)
     
+    def openStoryTimePath(self):
+        dir_ = self._model.getStoryTimePath()
+        if os.path.isdir(dir_):
+            utils.openDir(dir_)
+    
+    def loadPaths(self, paths):
+        self._model.loadPaths(paths)
+    
     def newRecording(self):
         self._model.newRecording()
         LOG.debug('New recording')
@@ -249,6 +258,7 @@ class StoryTimeWindow(object):
         f = QFileDialog.getOpenFileName(
             self.ui,
             caption=caption,
+            dir=self._model.getStoryTimePath(),
             filter='XML files (*.xml)',
         )[0]
         self._model.openRecording(f)
@@ -413,7 +423,7 @@ class TimeSlider(QWidget):
         # used to keep track of playback time
         self.time = QElapsedTimer()
         self.timer = QTimer()
-        self.timer.timerEvent = self.timerEvent
+        self.timer.timerEvent = self.updateTime
         
         # add context menu to audio
         action = QAction('Open Audio Folder...', self.ui)
@@ -539,7 +549,9 @@ class TimeSlider(QWidget):
             self.ui.TimeSlider.setSliderPosition(self._model.recordingDuration)
             self._dataMapper.submit()
     
-    def timerEvent(self, event):
+    def updateTime(self, event=None):
+        if not (self.isPlaying or self.isRecording):
+            return
         sec = self.time.elapsed() * 0.001
         frames = int(sec * self._model.recordingFps)
         self.ui.TimeSlider.setSliderPosition(frames)

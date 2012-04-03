@@ -14,6 +14,8 @@ uiFiles = [os.path.join(uiDir, ui) for ui in os.listdir(uiDir)]
 imgDir = 'storyTime/images'
 imgFiles = [os.path.join(imgDir, i) for i in os.listdir(imgDir)]
 
+ffmpeg = 'M:/software/portable/ffmpeg/bin/ffmpeg.exe'
+
 setup(
     options = {'py2exe': {
         'compressed':1,
@@ -23,6 +25,7 @@ setup(
         },
     },
     data_files = [
+        ('', [ffmpeg]),
         ('views', uiFiles),
         ('images', imgFiles),
     ],
@@ -36,6 +39,8 @@ setup(
 
 
 # copy plugins and write qt.conf
+if os.path.isdir('dist/plugins'):
+    shutil.rmtree('dist/plugins')
 shutil.copytree(os.path.join(pysideDir, 'plugins'), 'dist/plugins')
 with open('dist/qt.conf', 'wb') as fp:
     fp.write(qtconf)
