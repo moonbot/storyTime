@@ -234,20 +234,18 @@ class StoryTimeWindow(object):
     
     def openRecording(self):
         caption = 'Open Story Time Recording...'
-        return self.featureNotDone()
         f = QFileDialog.getOpenFileName(
             self.ui,
             caption=caption,
             filter='XML files (*.xml)',
-        )
-        LOG.debug('Opening story time file: {0}'.format(f))
+        )[0]
+        self._model.openRecording(f)
     
     def saveRecordingAs(self):
         caption = 'Save Story Time Recording...'
-        return self.featureNotDone()
-        file = self.getSaveDestination(caption)
-        if file is not None:
-            self._model.saveRecording(file)
+        f = self.getSaveDestination(caption)
+        if f is not None:
+            self._model.saveRecording(f)
     
     def exportMovie(self):
         caption = 'Export Movie...'
@@ -427,6 +425,7 @@ class TimeSlider(QWidget):
     
     def setSliderMaximum(self, value):
         self.ui.TimeSlider.setMaximum(value)
+        
     def getSliderMaximum(self):
         return self.ui.TimeSlider.maximum()
     sliderMaximum = Property('int', getSliderMaximum, setSliderMaximum)

@@ -91,6 +91,11 @@ class FrameRecording(object):
     
     def append(self, image, duration):
         f = Frame(image, duration)
+        self.appendFrame(f)
+    
+    def appendFrame(self, f):
+        if not isinstance(f, Frame):
+            raise TypeError('expected a Frame, got {0}'.format(type(f).__name__))
         self._frames.append(f)
     
     def insert(self, index, image, duration):
@@ -192,8 +197,11 @@ class Frame(object):
     duration = property(getDuration, setDuration)
     
     def serialize(self):
-        pass
-
+        return {'image':self.image, 'duration':self.duration}
+    
+    @staticmethod
+    def deserialize(dictonary):
+        return Frame(dictonary['image'], dictonary['duration'])
 
 class VideoRecording(object):
     pass
@@ -219,13 +227,26 @@ class RecordingCollection(object):
         return len(self.frames)
     
     @staticmethod
-    def fromString(string):
+    def fromString(recordingDict):
         """ Return a new RecordingCollection using the given string """
-        return RecordingCollection()
+        fr = FrameRecording(recordingDict['fps'])
+        for f in recordingDict['frames']:
+            fr.appendFrame(Frame.deserialize(f))
+        ar = AudioRecording()
+        return RecordingCollection(recordingDict['name'], fr, ar)
     
     def toString(self):
         """ Return this RecordingCollection as a serialized string """
-        return
+        serializedFrames = []
+        for f in self.frames.frames:
+            serializedFrames.append(f.serialize())
+        fps = self.frames.fps
+        tempFile = self.audio.tempFile
+        recordingDict = {
+            'frames':serializedFrames, 'fps':fps,
+            'audioFile': self.audio.filename, 'name':self.name
+        }
+        return recordingDict
 
 
 class ImageCollection(object):
