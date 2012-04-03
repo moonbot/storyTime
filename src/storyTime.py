@@ -35,6 +35,7 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setStyle('Plastique')
     wnd = controllers.StoryTimeWindow()
+    wnd.show()
     # load any given files
     if len(sys.argv) > 1:
         wnd.loadPaths(sys.argv[1:])
