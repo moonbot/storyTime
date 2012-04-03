@@ -29,6 +29,8 @@ Mappings = utils.enum(
     'end',
 )
 
+FFMPEG = 'ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg'
+
 
 class PixmapCache(object):
     def __init__(self):
@@ -429,28 +431,44 @@ class StoryTimeModel(QAbstractItemModel):
         
     
     def exportMovie(self, filename):
-        LOG.debug("copying images to temp for video export")
-        
-        tempDir = tempfile.gettempdir()
-        LOG.debug("tempDir = " + tempDir)
-        
+        if len(self.curFrameRecording) == 0:
+            LOG.debug('cant export recording. no content has been recorded yet')
+            return
+        # copy all the images into a sequence
+        tempDir = os.path.join(tempfile.gettempdir(), 'storyTimeMovieExport')
+        if not os.path.isdir(tempDir):
+            os.makedirs(tempDir)
+        LOG.debug('copying images to temp directory for video export: {0}'.format(tempDir))
         frames = self.curFrameRecording.frames
-        ext = os.path.splitext(frames[0].image)[-1]
-        count = 0
+        ext = os.path.splitext(frames[0].image)[-1].strip('.')
         
-        format_string = lambda index, ext: os.path.join(tempDir, 'storytime.{0:06d}{1}'.format(index, ext))
+        imgFmt = os.path.join(tempDir, 'storytime.{0:06d}.{1}')
+        LOG.debug(enumerate([f.image for f in frames for d in range(f.duration)]))
+        for i, image in enumerate([f.image for f in frames for d in range(f.duration)]):
+            shutil.copyfile(image, imgFmt.format(i, ext))
         
-        
-        for i in range(len(frames)):
-            for j in range(frames[i].duration):
-                count += 1
-                imagePath = frames[i].image
-                shutil.copyfile(imagePath, format_string(count, ext))
-                
-        aud_fmt = self.curAudioRecording.filename
-        img_fmt = os.path.join(tempDir, 'storytime.%06d{0}'.format(ext))
-        subprocess.Popen(['ffmpeg', '-r', '24', '-f', 'image2', '-i', img_fmt,'-i', aud_fmt, '-map', '0:0', '-map', '1:0',
-                          '-vcodec', 'libx264', '-acodec', 'mp2', '-preset', 'slow', '-b', '2200k', '-g', '12', filename]).wait()
+        img_fmt = os.path.join(tempDir, 'storytime.%06d.{0}'.format(ext))
+        args = [
+            FFMPEG,
+            '-t', len(frames),
+            '-r', self.recordingFps,
+            '-f', 'image2',
+            '-i', img_fmt,
+            '-map', '0:0',
+            '-vcodec', 'libx264',
+            '-g', '12',
+        ]
+        if self.curAudioRecording.hasRecording and False:
+            args += [
+                '-i', self.curAudioRecording.filename,
+                '-map', '1:0',
+                '-acodec', 'aac',
+                '-preset', 'slow',
+                '-b', '2200k',
+            ]
+        args.append(filename)
+        LOG.debug(args)
+        subprocess.Popen([str(a) for a in args])
     
     @property
     def imageCount(self):
