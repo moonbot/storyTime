@@ -33,7 +33,10 @@ class EventEater(QObject):
         
         else:
             # standard event processing
-            return QObject.eventFilter(self, obj, event)
+            try:
+                return QObject.eventFilter(self, obj, event)
+            except:
+                return False
 
     def keyPressEvent(self, event):
         return False
@@ -83,11 +86,10 @@ class StoryTimeWindow(object):
     def instance():
         return StoryTimeWindow._instance
     
-    def __init__(self):
-        self.uiParent = QWidget()
-        self.ui = utils.loadUi('views/main.ui', self.uiParent)
-        self.ui.setFocusPolicy(Qt.StrongFocus)
+    def __init__(self, parent=None):
+        self.ui = utils.loadUi('views/main.ui', None)
         self.ui.setWindowTitle('Story Time')
+        self.ui.setFocusPolicy(Qt.StrongFocus)
         self.ui.setAcceptDrops(True)
         self.ui.show()
         

@@ -50,10 +50,13 @@ def loadUi(path, parent):
 
 
 def attachUi(widget, parent):
+    if parent is None:
+        return
     if parent.layout() is None:
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         parent.setLayout(layout)
+    LOG.debug('adding {0} to {1}'.format(widget, parent))
     parent.layout().addWidget(widget)
 
 
