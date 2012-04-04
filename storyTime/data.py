@@ -8,6 +8,7 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
 from audio import AudioRecording
+from camera import CameraRecording
 import copy
 import logging
 import os
@@ -202,10 +203,7 @@ class Frame(object):
     @staticmethod
     def deserialize(dictonary):
         return Frame(dictonary['image'], dictonary['duration'])
-
-class VideoRecording(object):
-    pass
-
+        
 
 class RecordingCollection(object):
     """
@@ -214,11 +212,11 @@ class RecordingCollection(object):
     associate frame timings with audio recordings.
     """
     
-    def __init__(self, name='Recording', frames=None, audio=None):
+    def __init__(self, name='Recording', frames=None, audio=None, camera=None):
         self.name = name
         self.frames = frames if frames is not None else FrameRecording()
         self.audio = audio if audio is not None else AudioRecording()
-        # self.video = video if video is not None else VideoRecording()
+        self.camera = camera if camera is not None else CameraRecording()
     
     def __repr__(self):
         return '<RecordingCollection {0!r} {1!r} {2!r}>'.format(self.name, self.frames, self.audio)

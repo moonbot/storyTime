@@ -205,6 +205,10 @@ class StoryTimeModel(QAbstractItemModel):
     @property
     def curAudioRecording(self):
         return self.curRecording.audio
+        
+    @property
+    def curCameraRecording(self):
+        return self.curRecording.camera
     
     def getRecordingAtIndex(self, index):
         return self.recordings[index]        

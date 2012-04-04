@@ -18,15 +18,16 @@ import subprocess
 
 LOG = logging.getLogger('storyTime.camera')
 
-class VideoRecording(threading.Thread):
+class CameraRecording(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.isRecording = False
         self.hasRecording = False
         self.fps = 24.0
-        self.prevTime = 0
-        self.duration = 0
+        self.prevTime = 0.0
+        self.duration = 0.0
         self.camera = cv.CaptureFromCAM(-1)
+        self.cameraAvailable = self.camera is not None
             
     def __del__(self):
         if self.isRecording:
@@ -34,6 +35,8 @@ class VideoRecording(threading.Thread):
         del(self.camera)
         
     def record(self):
+        if not self.cameraAvailable: return
+    
         if self.isRecording:
             return
         self.hasRecording = True
@@ -42,6 +45,8 @@ class VideoRecording(threading.Thread):
         self.start()
         
     def stop(self):
+        if not self.cameraAvailable: return
+        
         print("stopping")
         if not self.isRecording:
             return
@@ -60,6 +65,8 @@ class VideoRecording(threading.Thread):
                     cv.SaveImage(os.path.join(tempfile.gettempdir(), 'cameraExport.%06d.jpg' % index), image)
                         
     def save(self, filename):
+        if not self.cameraAvailable: return
+        
         FFMPEG = 'ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg'
         args = [
             FFMPEG,
@@ -69,14 +76,10 @@ class VideoRecording(threading.Thread):
             '-r', self.fps,
             '-vcodec', 'libx264',
             '-g', '12',
-            '-t', float(self.duration) / self.fps,
+            '-t', self.duration / self.fps,
             filename,
         ]
         args = [str(a) for a in args]
         LOG.debug('ffmpeg command:\n {0}'.format(' '.join(args)))
         subprocess.Popen(args)
-        
-v = VideoRecording()
-v.record()
-pdb.set_trace()
  
