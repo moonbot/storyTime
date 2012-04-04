@@ -18,55 +18,19 @@ import subprocess
 
 LOG = logging.getLogger('storyTime.camera')
 
-class CameraRecording(threading.Thread):
+CAM = cv.CaptureFromCAM(-1)
+
+class CameraRecording(object):
     def __init__(self):
-        threading.Thread.__init__(self)
-        self.isRecording = False
         self.hasRecording = False
         self.fps = 24.0
-        self.prevTime = 0.0
-        self.duration = 0.0
-        self.camera = cv.CaptureFromCAM(-1)
-        self.cameraAvailable = self.camera is not None
-            
-    def __del__(self):
-        if self.isRecording:
-            self.stop()
-        del(self.camera)
-        
-    def record(self):
-        if not self.cameraAvailable: return
-    
-        if self.isRecording:
-            return
-        self.hasRecording = True
-        self.isRecording = True
-        self.startTime = time.time()
-        self.start()
-        
-    def stop(self):
-        if not self.cameraAvailable: return
-        
-        print("stopping")
-        if not self.isRecording:
-            return
-        self.isRecording = False
-            
-    def run(self):
-        # thread function called by self.start()
-        index = 0
-        while self.isRecording:
-            index += 1
-            elapsedTime = time.time() - self.prevTime
-            self.duration += elapsedTime
-            if elapsedTime > 1.0 / self.fps:
-                image = cv.QueryFrame(self.camera)
-                if image is not None:
-                    cv.SaveImage(os.path.join(tempfile.gettempdir(), 'cameraExport.%06d.jpg' % index), image)
-                        
+        self._recorder = None
+       
+    @property
+    def isRecording(self):
+        return self._recorder is not None and self._recorder.isRecording
+   
     def save(self, filename):
-        if not self.cameraAvailable: return
-        
         FFMPEG = 'ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg'
         args = [
             FFMPEG,
@@ -76,10 +40,58 @@ class CameraRecording(threading.Thread):
             '-r', self.fps,
             '-vcodec', 'libx264',
             '-g', '12',
-            '-t', self.duration / self.fps,
+            '-t', self._recorder.duration,
             filename,
         ]
         args = [str(a) for a in args]
-        LOG.debug('ffmpeg command:\n {0}'.format(' '.join(args)))
+        LOG.debug('\n\nffmpeg command:\n {0}\n\n'.format(' '.join(args)))
         subprocess.Popen(args)
  
+    def record(self):
+        """ Start recording camera """
+        if self.isRecording:
+            LOG.info('already recording')
+            return
+
+        self._recorder = CameraRecorder()
+        self._recorder.recording = self
+        self._recorder.start()
+
+    def stop(self):
+        self._recorder.join()
+        self.hasRecording = True
+ 
+class CameraRecorder(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.stopEvent = threading.Event()
+        self.isRecording = False
+        self.recording = None
+        self.duration = 0.0
+        
+    def join(self,timeout=None):
+        """
+        Stop the thread
+        """
+        self.stopEvent.set()
+        threading.Thread.join(self, timeout)
+
+    def run(self):
+        if CAM is None: return
+        LOG.debug("{0}".format(tempfile.gettempdir()))
+
+        index = 0
+        self.isRecording = True
+        startTime = time.time()        
+        
+        while not self.stopEvent.isSet():
+            index += 1
+            image = cv.QueryFrame(CAM)
+            if image is not None:
+                cv.SaveImage(os.path.join(tempfile.gettempdir(), 'cameraExport.%06d.jpg' % index), image)
+            self.stopEvent.wait(1.0 / self.recording.fps)
+               
+        self.duration = time.time() - startTime
+        self.isRecording = False
+    
+        

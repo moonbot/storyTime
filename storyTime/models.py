@@ -454,7 +454,12 @@ class StoryTimeModel(QAbstractItemModel):
         if index is None:
             index = self.recordingIndex
         recording = self.recordings[index]
-        
+        if recording.camera.hasRecording:
+            LOG.debug("camera has recording")
+            head, tail = os.path.split(filename)
+            cameraFilename = os.path.join(head, "camera." + tail)
+            recording.camera.save(cameraFilename)
+                    
         if recording.duration == 0:
             LOG.debug('cannot export recording of duration 0')
             return
@@ -472,7 +477,7 @@ class StoryTimeModel(QAbstractItemModel):
         if recording.audio.hasRecording:
             args += [
                 '-i', recording.audio.filename,
-                '-acodec', 'libvo_aacenc',
+                '-acodec', 'mp2',
                 '-ab', '256k',
             ]
         args += [
@@ -652,6 +657,8 @@ class StoryTimeModel(QAbstractItemModel):
             if not self.isRecording:
                 # recording has just stopped. record the last frame
                 self.recordCurrentFrame()
+
+                self.curCameraRecording.stop()
                 if self._audioEnabled:
                     # TODO: save the recording and audio (xml, wav) to getStoryTimePath
                     self.curAudioRecording.stop()
@@ -661,6 +668,7 @@ class StoryTimeModel(QAbstractItemModel):
                 if len(self.curFrameRecording) != 0:
                     # start a new recording cause this ones already been used
                     self.newRecording()
+                self.curCameraRecording.record()
                 if self._audioEnabled:
                     self.curAudioRecording.record()
             self.recordingDataChanged()
