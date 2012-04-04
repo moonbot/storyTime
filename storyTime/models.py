@@ -451,6 +451,10 @@ class StoryTimeModel(QAbstractItemModel):
             index = self.recordingIndex
         recording = self.recordings[index]
         
+        if recording.duration == 0:
+            LOG.debug('cannot export recording of duration 0')
+            return
+        
         img_fmt = self.exportFrameRecordingSequence(recording.frames, progress)
         if img_fmt is None:
             return
@@ -464,12 +468,13 @@ class StoryTimeModel(QAbstractItemModel):
         if recording.audio.hasRecording:
             args += [
                 '-i', recording.audio.filename,
-                '-acodec', 'aac',
-                '-ab', '256',
+                '-acodec', 'libvo_aacenc',
+                '-ab', '256k',
             ]
         args += [
             '-r', self.recordingFps,
             '-vcodec', 'libx264',
+            '-cqp', '31',
             '-g', '12',
             '-t', float(recording.duration) / self.recordingFps,
             filename,
