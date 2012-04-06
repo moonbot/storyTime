@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>704</width>
-    <height>95</height>
+    <width>652</width>
+    <height>91</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -50,7 +50,7 @@
          <number>4</number>
         </property>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,1,0,0,0,0,0,0,0">
+         <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,1,0,0,0,0,0,0,0,0">
           <item>
            <widget class="QSpinBox" name="RecordingIndex">
             <property name="maximum">
@@ -189,6 +189,9 @@
              <string>_1</string>
             </property>
            </widget>
+          </item>
+          <item>
+           <widget class="QDoubleSpinBox" name="TimerInterval"/>
           </item>
           <item>
            <widget class="QCheckBox" name="AudioCheck">

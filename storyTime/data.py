@@ -226,6 +226,30 @@ class RecordingCollection(object):
     def __len__(self):
         return len(self.frames)
     
+    @property
+    def fps(self):
+        return self.frames.fps
+    
+    @property
+    def timerInterval(self):
+        return (1 / self.fps) * 1000
+    
+    @property
+    def imageCount(self):
+        return len(self.frames)
+    
+    @property
+    def audioDuration(self):
+        return self.audio.duration
+    
+    @property
+    def frameDuration(self):
+        return self.frames.duration
+    
+    @property
+    def duration(self):
+        return self.frameDuration
+    
     @staticmethod
     def fromString(recordingDict):
         """ Return a new RecordingCollection using the given string """
