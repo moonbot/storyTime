@@ -96,7 +96,7 @@ class PixmapCache(object):
     
     def getPixmap(self, path):
         if not isinstance(path, (str, unicode)):
-            return
+            return QPixmap()
         if os.path.isfile(path):
             if self.has_key(path):
                 # pixmap already loaded
@@ -106,7 +106,7 @@ class PixmapCache(object):
                 pixmap = QPixmap(path)
                 self[path] = pixmap
                 return pixmap
-        return None
+        return QPixmap()
     
     def normKey(self, path):
         return os.path.normpath(path).lower()
@@ -274,12 +274,12 @@ class StoryTimeModel(QAbstractItemModel):
         return os.path.expanduser('~/storyTime')
     
     def getAudioPath(self, name):
-        filename = utils.normalizeFilename('{name}_{date}'.format(name=name, date=utils.timeString()))
+        filename = utils.normalizeFilename('{date}_{name}'.format(name=name, date=utils.timeString()))
         path = os.path.join(self.getStoryTimePath(), filename)
         return path
     
     def getRecordingPath(self, name):
-        filename = utils.normalizeFilename('{name}_{date}'.format(name=name, date=utils.timeString()))
+        filename = utils.normalizeFilename('{date}_{name}'.format(name=name, date=utils.timeString()))
         path = os.path.join(self.getStoryTimePath(), filename)
         return path
     
@@ -435,6 +435,12 @@ class StoryTimeModel(QAbstractItemModel):
             data = pickle.load(fp)
         recording = RecordingCollection.fromString(data)
         self.addRecording(recording)
+        
+        # attempt to load audio
+        audioFile = os.path.splitext(filename)[0] + '.wav'
+        if os.path.isfile(audioFile):
+            recording.audio.load(audioFile)
+        
         LOG.info('Loaded recording: {0}'.format(filename))
         # TODO: figure out a better way to encapsulate this functionality
         allImages = sorted(list(set(self.images + recording.frames.images)))
@@ -449,43 +455,73 @@ class StoryTimeModel(QAbstractItemModel):
         LOG.debug('Saved recording to {0}'.format(filename))
         
     
-    def exportMovie(self, filename, index):        
+    def exportMovie(self, filename, index, progress=None):        
         recording = self.recordings[index.row()]
-        # copy all the images into a sequence
-        tempDir = os.path.join(tempfile.gettempdir(), 'storyTimeMovieExport')
-        if not os.path.isdir(tempDir):
-            os.makedirs(tempDir)
-        LOG.debug('copying images to temp directory for video export: {0}'.format(tempDir))
-        frames = recording.frames.frames
-        ext = os.path.splitext(frames[0].image)[-1].strip('.')
         
-        imgFmt = os.path.join(tempDir, 'storytime.{0:06d}.{1}')
-        LOG.debug(enumerate([f.image for f in frames for d in range(f.duration)]))
-        for i, image in enumerate([f.image for f in frames for d in range(f.duration)]):
-            shutil.copyfile(image, imgFmt.format(i, ext))
+        if recording.duration == 0:
+            LOG.debug('cannot export recording of duration 0')
+            return
         
-        img_fmt = os.path.join(tempDir, 'storytime.%06d.{0}'.format(ext))
+        img_fmt = self.exportFrameRecordingSequence(recording.frames, progress)
+        if img_fmt is None:
+            return
+        
         args = [
             FFMPEG,
-            '-t', len(frames),
-            '-r', recording.fps,
+            '-y',
             '-f', 'image2',
             '-i', img_fmt,
-            '-map', '0:0',
-            '-vcodec', 'libx264',
-            '-g', '12',
         ]
-        if recording.audio.hasRecording and False:
+        if recording.audio.hasRecording:
             args += [
                 '-i', recording.audio.filename,
-                '-map', '1:0',
-                '-acodec', 'aac',
-                '-preset', 'slow',
-                '-b', '2200k',
+                '-acodec', 'libvo_aacenc',
+                '-ab', '256k',
             ]
-        args.append(filename)
-        LOG.debug(args)
-        subprocess.Popen([str(a) for a in args])
+        args += [
+            '-r', recording.fps,
+            '-vcodec', 'libx264',
+            '-cqp', '31',
+            '-g', '12',
+            '-t', float(recording.duration) / recording.fps,
+            filename,
+        ]
+        args = [str(a) for a in args]
+        LOG.debug('ffmpeg command:\n {0}'.format(' '.join(args)))
+        subprocess.Popen(args)
+    
+    def exportFrameRecordingSequence(self, recording, progress=None):
+        """
+        Save the given frame recording out to an
+        image sequence and return the sequence format
+        """
+        # get temporary directory
+        dir_ = os.path.join(tempfile.gettempdir(), 'storyTimeMovieExport')
+        if not os.path.isdir(dir_):
+            os.makedirs(dir_)
+        LOG.debug('copying images to temp directory for video export: {0}'.format(dir_))
+        
+        # create img naming format
+        frames = recording.frames
+        ext = os.path.splitext(frames[0].image)[-1]
+        imgFmt = os.path.join(dir_, 'storyTimeExport.%06d{0}'.format(ext))
+        
+        # progress bar prep
+        if progress is not None:
+            progress.setLabelText('Exporting image sequence to be encoded...')
+            progress.setMaximum(recording.duration)
+        
+        for i, image in enumerate([f.image for f in frames for d in range(f.duration)]):
+            shutil.copyfile(image, imgFmt % i)
+            if progress is not None:
+                progress.setValue(i)
+                if progress.wasCanceled():
+                    return
+        
+        if progress is not None:
+            progress.setValue(recording.duration)
+        
+        return imgFmt
     
     def loadImageAtTime(self, index, time):
         recording = self.recordings[index.row()]
@@ -503,6 +539,10 @@ class StoryTimeModel(QAbstractItemModel):
         self.imageDataChanged()
         self.recordingDataChanged()
     
+    def clearImages(self):
+        self.images = []
+        self.pixmapCache.clear()
+        self.imageDataChanged()
     
     # qt model methods
     

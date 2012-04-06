@@ -33,7 +33,10 @@ class EventEater(QObject):
         
         else:
             # standard event processing
-            return QObject.eventFilter(self, obj, event)
+            try:
+                return QObject.eventFilter(self, obj, event)
+            except:
+                return False
 
     def keyPressEvent(self, event):
         return False
@@ -83,11 +86,10 @@ class StoryTimeWindow(object):
     def instance():
         return StoryTimeWindow._instance
     
-    def __init__(self):
-        self.uiParent = QWidget()
-        self.ui = utils.loadUi('views/main.ui', self.uiParent)
-        self.ui.setFocusPolicy(Qt.StrongFocus)
+    def __init__(self, parent=None):
+        self.ui = utils.loadUi('views/main.ui', None)
         self.ui.setWindowTitle('Story Time')
+        self.ui.setFocusPolicy(Qt.StrongFocus)
         self.ui.setAcceptDrops(True)
         self.ui.show()
         
@@ -142,6 +144,7 @@ class StoryTimeWindow(object):
         self.ui.actionExportForEditing.triggered.connect(self.exportForEditing)
         self.ui.actionOpenStoryTimeDir.triggered.connect(self.openStoryTimePath)
         self.ui.actionImportImages.triggered.connect(self.importImages)
+        self.ui.actionClearImages.triggered.connect(self._model.clearImages)
         self.ui.actionNewRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_N))
         self.ui.actionOpenRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_O))
         self.ui.actionSaveRecordingAs.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_S))
@@ -278,7 +281,9 @@ class StoryTimeWindow(object):
         caption = 'Export Movie...'
         file = self.getSaveDestination(caption, filter='MOV files (*.mov)')
         if file is not None:
-            self._model.exportMovie(file)
+            progress = QProgressDialog('Exporting Movie...', 'Cancel', 0, 100, self.ui)
+            progress.setWindowModality(Qt.WindowModal)
+            self._model.exportMovie(file, progress=progress)
     
     def exportForEditing(self):
         caption = 'Export XML for Editing...'
@@ -386,10 +391,11 @@ class ImageSlider(QWidget):
         self.ui.PrevImageCheck.toggled.connect(StoryTimeWindow.instance().setPrevImageViewVisible)
         self.ui.NextImageCheck.toggled.connect(StoryTimeWindow.instance().setNextImageViewVisible)
     
-    def setSliderMaximum(self, value):
-        self.ui.ImageSlider.setMaximum(max(value - 1, 0))
     def getSliderMaximum(self):
         return self.ui.ImageSlider.maximum()
+    def setSliderMaximum(self, value):
+        self.ui.ImageSlider.setMaximum(max(value - 1, 0))
+        self.ui.ImageSliderProgress.repaint()
     sliderMaximum = Property('int', getSliderMaximum, setSliderMaximum)
     
     def setModel(self, model):
@@ -488,6 +494,7 @@ class TimeSlider(QWidget):
     
     def setSliderMaximum(self, value):
         self.ui.TimeSlider.setMaximum(value)
+        self.ui.TimeSliderProgress.repaint()
         
     def getSliderMaximum(self):
         return self.ui.TimeSlider.maximum()
@@ -559,8 +566,9 @@ class TimeSlider(QWidget):
     isPlaying = property(getIsPlaying, setIsPlaying)
     
     def record(self):
-        self.isRecording = True
-        self.play()
+        if len(self._model.images) > 0:
+            self.isRecording = True
+            self.play()
     
     def play(self, time=0):
         self.isPlaying = True

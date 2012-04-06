@@ -100,7 +100,7 @@
      <x>0</x>
      <y>0</y>
      <width>921</width>
-     <height>27</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -116,6 +116,7 @@
     <addaction name="actionOpenStoryTimeDir"/>
     <addaction name="separator"/>
     <addaction name="actionImportImages"/>
+    <addaction name="actionClearImages"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="title">
@@ -302,6 +303,11 @@
   <action name="actionExportMovie">
    <property name="text">
     <string>Export Movie...</string>
+   </property>
+  </action>
+  <action name="actionClearImages">
+   <property name="text">
+    <string>Clear Images</string>
    </property>
   </action>
  </widget>

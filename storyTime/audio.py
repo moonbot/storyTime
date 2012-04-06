@@ -80,6 +80,13 @@ class AudioRecording(object):
     and played back. Uses and AudioRecorder and
     AudioPlayer to handle recording and playback.
     """
+    
+    @staticmethod
+    def fromFile(filename):
+        ar = AudioRecording()
+        ar.load(filename)
+        return ar
+    
     def __init__(self):
         self.filename = None
         self.duration = 0
@@ -121,6 +128,13 @@ class AudioRecording(object):
     @property
     def player(self):
         return self._player
+    
+    def load(self, filename):
+        # copy the file to the tmp location
+        shutil.copy2(filename, self.tempFile)
+        self.filename = filename
+        self._hasRecording = True
+        LOG.debug('loaded audio file: {0}'.format(filename))
     
     def record(self):
         """ Start recording audio """

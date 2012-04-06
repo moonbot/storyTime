@@ -5,7 +5,7 @@ Created by Chris Lewis on 2011-06-13.
 Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
-__version__ = '0.2.2'
+__version__ = '0.2.4'
 
 from PySide.QtGui import QApplication
 from utils import isFrozen, modulePath
