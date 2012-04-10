@@ -197,7 +197,7 @@ class StoryTimeWindow(object):
     
     def audioInputGroupTriggered(self):
         value = self.ui.audioInputGroup.checkedAction().data()
-        index = self._model.index(Mappings.audioInputDeviceIndex)
+        index = self._model.index(column=Mappings.audioInputDeviceIndex)
         self._model.setData(index, value)
     
     def keyPressEvent(self, event):
@@ -205,14 +205,14 @@ class StoryTimeWindow(object):
         if event.key() in (Qt.Key_Space, Qt.Key_Period, Qt.Key_Right, Qt.Key_Down):
             # update time and frame
             self.timeSlider.updateTime()
-            index = self._model.index(Mappings.curImageIndex)
+            index = self._model.index(column=Mappings.curImageIndex)
             value = self._model.curImageIndex + 1
             self._model.setData(index, value)
             return True
         if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left, Qt.Key_Up):
             # update time and frame
             self.timeSlider.updateTime()
-            index = self._model.index(Mappings.curImageIndex)
+            index = self._model.index(column=Mappings.curImageIndex)
             value = self._model.curImageIndex - 1
             self._model.setData(index, value)
             return True
@@ -425,21 +425,16 @@ class RecordingView(QWidget):
     def __init__(self, parent=None):
         super(RecordingView, self).__init__(parent)
         self.ui = utils.loadUi('views/recordingsView.ui', self)
-        self._dataMapper = QDataWidgetMapper()
-        self.ui.show()
-        
-        #self.ui.listView.selectionModel().currentChanged.connect(self.setSelection)
     
     def setModel(self, model):
         self._model = model
-        self._dataMapper.setModel(model)
         print 'Recording View Model Set'
-        self.ui.listView.setModel(model)
-        #self._dataMapper.addMapping(self.ui.listView, Mappings.recordings, 'list')
-        #self._dataMapper.toFirst()
+        self.ui.tableView.setModel(model)       
+        self.ui.tableView.selectionModel().currentChanged.connect(self.setSelection)
     
     def setSelection(self, current):
         LOG.debug('current selection: {0} {1}'.format(current.row(), current.column()))
+        StoryTimeWindow.instance().timeSlider.setModelIndex(current)
 
 
 
@@ -453,9 +448,6 @@ class TimeSlider(QWidget):
         #self.setupUi(self)
         self.ui = utils.loadUi('views/timeSlider.ui', self)
         self._dataMapper = QDataWidgetMapper()
-        
-        self.fps = 24
-        self.timerInterval = 1.0 / self.fps
         
         # used to keep track of playback time
         self.time = QElapsedTimer()
@@ -472,8 +464,6 @@ class TimeSlider(QWidget):
         self.ui.IsPlayingCheck.setVisible(False)
         self.ui.TimerInterval.setVisible(False)
         
-        self._dataMapper.currentIndexChanged.connect(self.currentIndexChanged)
-        self.ui.RecordingIndex.valueChanged.connect(self.recordingIndexChanged)
         self.ui.TimeSlider.valueChanged.connect(self.timeSliderValueChanged)
         self.ui.IsPlayingCheck.toggled.connect(self.updateIsPlaying)
         self.ui.IsRecordingCheck.toggled.connect(self.updateIsRecording)
@@ -481,9 +471,6 @@ class TimeSlider(QWidget):
         self.ui.PlayBtn.clicked.connect(self.play)
         self.ui.RecordBtn.clicked.connect(self.recordBtnAction)
         self.ui.NewBtn.clicked.connect(StoryTimeWindow.instance().newRecording)
-    
-    def currentIndexChanged(self, index):
-        self.timerInterval = self._model.data(
     
     @property
     def timerInterval(self):
@@ -511,13 +498,9 @@ class TimeSlider(QWidget):
     def recordingIndexChanged(self):
         if self.isPlaying and not self.isRecording:
             self.play()
-        # submit the data directly
-        index = self._model.index(Mappings.recordingIndex)
-        value = self.ui.RecordingIndex.value()
-        self._model.setData(index, value)
     
     def timeSliderValueChanged(self):
-        index = self._model.index(Mappings.curTime)
+        index = self._model.index(column=Mappings.curTime)
         value = self.ui.TimeSlider.value()
         self._model.setData(index, value)
     
@@ -540,7 +523,6 @@ class TimeSlider(QWidget):
         self.ui.MainFrame.setStyleSheet(style)
         # enable/disable controls
         self.ui.TimeSlider.setEnabled(not isRecording)
-        setVisuallyEnabled(self.ui.RecordingIndex, not isRecording)
     
     def recordBtnAction(self):
         if self.isRecording or self.isPlaying:
@@ -553,7 +535,7 @@ class TimeSlider(QWidget):
         return self.ui.IsRecordingCheck.checkState() == Qt.Checked
     def setIsRecording(self, value):
         self.ui.IsRecordingCheck.setCheckState(Qt.Checked if value else Qt.Unchecked)
-        index = self._model.index(Mappings.isRecording)
+        index = self._model.index(column=Mappings.isRecording)
         self._model.setData(index, value)
     isRecording = property(getIsRecording, setIsRecording)
     
@@ -561,7 +543,7 @@ class TimeSlider(QWidget):
         return self.ui.IsPlayingCheck.checkState() == Qt.Checked
     def setIsPlaying(self, value):
         self.ui.IsPlayingCheck.setCheckState(Qt.Checked if value else Qt.Unchecked)
-        index = self._model.index(Mappings.isPlaying)
+        index = self._model.index(column=Mappings.isPlaying)
         self._model.setData(index, value)
     isPlaying = property(getIsPlaying, setIsPlaying)
     
@@ -614,18 +596,19 @@ class TimeSlider(QWidget):
         self._dataMapper.setModel(model)
         # TODO: hookup 'timerInterval' to the new timerInterval float field thingy
         self._dataMapper.addMapping(self.ui.TimerInterval, Mappings.timerInterval, 'value')
-        self._dataMapper.addMapping(self.ui.RecordingIndex, Mappings.recordingIndex, 'value')
-        self._dataMapper.addMapping(self.ui.RecordingName, Mappings.recordingName, 'text')
-        self._dataMapper.addMapping(self.ui.RecordingImageCount, Mappings.recordingImageCount, 'text')
-        self._dataMapper.addMapping(self.ui.RecordingDurationDisplay, Mappings.recordingDurationDisplay, 'text')
-        self._dataMapper.addMapping(self, Mappings.recordingDuration, 'sliderMaximum')
+        self._dataMapper.addMapping(self.ui.RecordingName, Mappings.name, 'text')
+        self._dataMapper.addMapping(self.ui.RecordingImageCount, Mappings.imageCount, 'text')
+        self._dataMapper.addMapping(self.ui.RecordingDurationDisplay, Mappings.timelineDurationDisplay, 'text')
+        self._dataMapper.addMapping(self, Mappings.timelineDuration, 'sliderMaximum')
         self._dataMapper.addMapping(self.ui.AudioCheck, Mappings.audioEnabled, 'checked')
         self._dataMapper.addMapping(self.ui.IsRecordingCheck, Mappings.isRecording, 'checked')
         self._dataMapper.addMapping(self.ui.IsPlayingCheck, Mappings.isPlaying, 'checked')
         self._dataMapper.addMapping(self.ui.TimeSlider, Mappings.curTime, 'sliderPosition')
         self._dataMapper.addMapping(self.ui.TimeDisplay, Mappings.timeDisplay, 'text')
         self._dataMapper.toFirst()
-        
+    
+    def setModelIndex(self, index):
+        self._dataMapper.setCurrentModelIndex(index)
     
     def installEventFilter(self, filter):
             # install the event filter on all appropriate objects
@@ -633,7 +616,6 @@ class TimeSlider(QWidget):
         self.ui.TimeDisplay.installEventFilter(filter)
         self.ui.AudioCheck.installEventFilter(filter)
         self.ui.PlayBtn.installEventFilter(filter)
-        self.ui.RecordingIndex.installEventFilter(filter)
         self.ui.RecordBtn.installEventFilter(filter)
         self.ui.NewBtn.installEventFilter(filter)
 

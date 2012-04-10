@@ -24,7 +24,7 @@ LOG = logging.getLogger('storyTime.models')
 # TODO: cluster mappings that affect each other or create event pool presets
 Mappings = utils.enum(
     # recording props
-    'name', 'fps', 'timerInterval', 'duration', 'durationDisplay', 'imageCount',
+    'name', 'durationDisplay', 'imageCount', 'duration', 'fps', 'timerInterval', 
     
     # model normal attrs
     'recordings', 'recordingCount', 'isRecording', 'isPlaying', 'curTime',
@@ -237,7 +237,7 @@ class StoryTimeModel(QAbstractItemModel):
             minutes = math.floor(float(self.curTime) / minuteFrames) + 2
             return int(minutes * minuteFrames)
         else:
-            ad = self.secondsToFrames(recording.audioDuration)
+            ad = self.secondsToFrames(index, recording.audioDuration)
             fd = recording.frameDuration
             #vd = recording.videuDuration
             return max(ad, fd)
@@ -306,9 +306,16 @@ class StoryTimeModel(QAbstractItemModel):
         self.addRecording(new)
     
     def addRecording(self, recording):
-        self.recordings.append(recording)
-        # TODO: replace this with insertRows
-        # TODO: update listy guys to inform them the count has changed
+        self.insertRows(len(self.recordings), [recording])
+    
+    def insertRows(self, position, recordings, parent=QModelIndex()):
+        rows = len(recordings)
+        self.beginInsertRows(parent, position, position + rows - 1)
+        for r in recordings:
+            self.recordings.insert(position, r)
+        self.endInsertRows()
+        return True
+    
     
     def deleteRecording(self, index):
         # TODO: replace with removeRows
@@ -365,15 +372,12 @@ class StoryTimeModel(QAbstractItemModel):
                 self.imageCollection.loadDir(os.path.dirname(image))
         elif len(images) > 1:
             self.imageCollection.images = sorted(images)
-        # update the recording's name, if applicable
-        self.updateRecordingName()
         # emit signals
         self.imageDataChanged()
         
         # handle recordings
         for xml in xmls:
             self.openRecording(xml)
-        self.recordingDataChanged()
     
     
     def updateRecordingName(self, index):
@@ -396,7 +400,7 @@ class StoryTimeModel(QAbstractItemModel):
         LOG.debug('Clearing cache {0}'.format(self.pixmapCache.count))
         self.pixmapCache.clear()
     
-    def toXml(self, platform=None, index):
+    def toXml(self, index, platform=None):
         """
         Export the current recording collection to an editorial xml file.
         
@@ -421,7 +425,7 @@ class StoryTimeModel(QAbstractItemModel):
             }
             return fcpxml.FcpXml(**fcpkw).toString()
     
-    def exportRecording(self, filename, platform='win', index):
+    def exportRecording(self, filename, index, platform='win'):
         xml = self.toXml(platform, index)
         with open(filename, 'wb') as fp:
             fp.write(xml)
@@ -446,7 +450,7 @@ class StoryTimeModel(QAbstractItemModel):
         allImages = sorted(list(set(self.images + recording.frames.images)))
         self.images = allImages
     
-    def saveRecording(self, filename=None, index):
+    def saveRecording(self, index, filename=None):
         # force extension
         filename = '{0}.xml'.format(os.path.splitext(filename)[0])
         # if filename is none should try to use lastSavedFilename for the current recording collection
@@ -537,7 +541,6 @@ class StoryTimeModel(QAbstractItemModel):
         # update cache
         self.pixmapCache.add(self.nextImage)
         self.imageDataChanged()
-        self.recordingDataChanged()
     
     def clearImages(self):
         self.images = []
@@ -550,24 +553,27 @@ class StoryTimeModel(QAbstractItemModel):
         return len(self.recordings)
     
     def columnCount(self, parent):
-        return 1
+        return 3
     
     def data(self, index, role = Qt.DisplayRole):
-        LOG.debug('mapping={0} role={1}'.format(Mappings.names[index.column()], role))
         if not index.isValid():
             return
         
-        # get the mapping and source object
-        m = index.column()
-        attr = Mappings.names[m]
-        src = self.recordings[index.row()] if attr in self.recordingProps else self
-        
-        if attr in self.specialProps:
-            if hasattr(self, attr):
-                return getattr(self, attr)(index)
-        else:
-            if hasattr(src, attr):
-                return getattr(src, attr)
+        if role in (Qt.DisplayRole, Qt.EditRole):
+            # get the mapping and source object
+            m = index.column()
+            attr = Mappings.names[m]
+            src = self.recordings[index.row()] if attr in self.recordingProps else self
+            
+            if attr == 'name':
+                print('retrieving {0}: {1}'.format(attr, getattr(src, attr)))
+            
+            if attr in self.specialProps:
+                if hasattr(self, attr):
+                    return getattr(self, attr)(index)
+            else:
+                if hasattr(src, attr):
+                    return getattr(src, attr)
     
     
     def setData(self, index, value, role=Qt.EditRole):
@@ -579,7 +585,9 @@ class StoryTimeModel(QAbstractItemModel):
         # get the mapping and source object
         m = index.column()
         attr = Mappings.names[m]
+        print('setting row, col {0}, {1}, {2}'.format(index.row(), index.column(), attr))
         src = self.recordings[index.row()] if attr in self.recordingProps else self
+        print('continuing to set {0}'.format(attr))
         
         # special props cant be set
         if attr in self.specialProps:
@@ -673,7 +681,7 @@ class StoryTimeModel(QAbstractItemModel):
         
         return False
     
-    def imageDataChanged(self, index):
+    def imageDataChanged(self):
         attrs = (
             'imageCollectionCount',
             'curImageIndex',
@@ -683,7 +691,7 @@ class StoryTimeModel(QAbstractItemModel):
             'prevImage',
             'nextImage',
         )
-        self.multiMappingChanged(index, attrs)
+        self.multiMappingChanged(self.index(), attrs)
     
     def recordingDataChanged(self, index):
         attrs = (
