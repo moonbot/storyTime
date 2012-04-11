@@ -454,12 +454,16 @@ class StoryTimeModel(QAbstractItemModel):
         if index is None:
             index = self.recordingIndex
         recording = self.recordings[index]
+        
+        head, tail = os.path.split(filename)
+        
+        # export camera recording as movie
         if recording.camera.hasRecording:
             LOG.debug("camera has recording")
-            head, tail = os.path.split(filename)
             cameraFilename = os.path.join(head, "camera." + tail)
             recording.camera.save(cameraFilename)
-                    
+                  
+        # export storyboard pitch as movie  
         if recording.duration == 0:
             LOG.debug('cannot export recording of duration 0')
             return
@@ -467,6 +471,8 @@ class StoryTimeModel(QAbstractItemModel):
         img_fmt = self.exportFrameRecordingSequence(recording.frames, progress)
         if img_fmt is None:
             return
+        
+        pitchFilename = os.path.join(head, "pitch." + tail)
         
         args = [
             FFMPEG,
@@ -486,11 +492,33 @@ class StoryTimeModel(QAbstractItemModel):
             '-cqp', '31',
             '-g', '12',
             '-t', float(recording.duration) / self.recordingFps,
+            pitchFilename,
+        ]
+        args = [str(a) for a in args]
+        LOG.debug('ffmpeg command:\n {0}'.format(' '.join(args)))
+        subprocess.Popen(args).wait()
+        
+        # stitch camera recording into storyboard pitch at picture in picture
+        x_pad = 10
+        y_pad = 10
+        alpha = 200
+        filters = 'movie={0}[cam];[cam]format=rgba,lutrgb=a={1}[alpha];[in][alpha]overlay=main_w-overlay_w-{2}:main_h-overlay_h-{3}[out]'.format(cameraFilename, alpha, x_pad, y_pad)
+        args = [
+            FFMPEG,
+            '-y',
+            '-i', pitchFilename,
+            '-r', self.recordingFps,
+            '-vcodec', 'libx264',
+            '-cqp', '31',
+            '-g', '12',
+            '-t', float(recording.duration) / self.recordingFps,
+            '-vf', filters,
             filename,
         ]
         args = [str(a) for a in args]
         LOG.debug('ffmpeg command:\n {0}'.format(' '.join(args)))
-        subprocess.Popen(args)
+        subprocess.Popen(args).wait()
+            
     
     def exportFrameRecordingSequence(self, recording, progress=None):
         """

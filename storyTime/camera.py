@@ -19,6 +19,11 @@ import subprocess
 LOG = logging.getLogger('storyTime.camera')
 
 CAM = cv.CaptureFromCAM(-1)
+frac = .25
+W = cv.GetCaptureProperty(CAM, cv.CV_CAP_PROP_FRAME_WIDTH) * frac
+H = cv.GetCaptureProperty(CAM, cv.CV_CAP_PROP_FRAME_HEIGHT) * frac
+cv.SetCaptureProperty(CAM, cv.CV_CAP_PROP_FRAME_HEIGHT, int(W)) # doesn't actually set correctly
+cv.SetCaptureProperty(CAM, cv.CV_CAP_PROP_FRAME_WIDTH, int(H)) # this one either, aspect ratio get's messed up
 
 class CameraRecording(object):
     def __init__(self):
@@ -41,11 +46,12 @@ class CameraRecording(object):
             '-vcodec', 'libx264',
             '-g', '12',
             '-t', self._recorder.duration,
+            '-s', 'qvga', #correcting for the fucked up opencv stuff
             filename,
         ]
         args = [str(a) for a in args]
         LOG.debug('\n\nffmpeg command:\n {0}\n\n'.format(' '.join(args)))
-        subprocess.Popen(args)
+        subprocess.Popen(args).wait()
  
     def record(self):
         """ Start recording camera """
@@ -85,13 +91,13 @@ class CameraRecorder(threading.Thread):
         startTime = time.time()        
         
         while not self.stopEvent.isSet():
+            t = time.time()
             index += 1
             image = cv.QueryFrame(CAM)
             if image is not None:
                 cv.SaveImage(os.path.join(tempfile.gettempdir(), 'cameraExport.%06d.jpg' % index), image)
-            self.stopEvent.wait(1.0 / self.recording.fps)
+            diff = time.time() - t
+            self.stopEvent.wait(max(1.0 / self.recording.fps - diff, .000001))
                
         self.duration = time.time() - startTime
         self.isRecording = False
-    
-        
