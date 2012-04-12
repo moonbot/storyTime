@@ -10,8 +10,9 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 
 class FrameRecording(object):
     """
-    A recording created by Story Time. Times are stored
-    in frames as Story Time is primarily a frame-based tool.
+    A recording created by Story Time.
+    
+    All times on a FrameRecording are stored in frames, not seconds.
     
     FrameRecordings provide a pretty expansive interface for modification.
     This includes subscription and iteration akin to a list,

@@ -5,7 +5,7 @@ Created by Bohdon Sayre on 2012-03-26.
 Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
-from models import Mappings, StoryTimeModel
+from models import *
 from PySide.QtCore import *
 from PySide.QtGui import *
 import audio
@@ -102,36 +102,46 @@ class StoryTimeWindow(object):
         self.ui.setAcceptDrops(True)
         self.ui.show()
         
-        # setup model
-        self._model = StoryTimeModel(self.ui)
+        self._imageModel = ImageCollectionModel(self.ui)
+        self._recordingModel = RecordingModel(self.ui)
+        self._recorderModel = RecorderModel(self._imageModel, self._recordingModel, self.ui)
         
+        
+        # ImageViews
         # current image
-        self.curImageView = ImageView(Mappings.curImage, 1, self.ui)
-        self.curImageView.setModel(self._model)
+        self.curImageView = ImageView(self.ui)
+        self.curImageView.setModel(self._imageModel, self._imageModel.maps.curImage)
         self.ui.layoutCurImage.addWidget(self.curImageView)
         # prev image
-        self.prevImageView = ImageView(Mappings.prevImage, 0, self.ui)
-        self.prevImageView.setModel(self._model)
+        self.prevImageView = ImageView(self.ui)
+        self.prevImageView.setModel(self._imageModel, self._imageModel.maps.prevImage)
         self.ui.layoutPrevImage.addWidget(self.prevImageView)
         # prev image
-        self.nextImageView = ImageView(Mappings.nextImage, 2, self.ui)
-        self.nextImageView.setModel(self._model)
+        self.nextImageView = ImageView(self.ui)
+        self.nextImageView.setModel(self._imageModel, self._imageModel.maps.nextImage)
         self.ui.layoutNextImage.addWidget(self.nextImageView)
-        
+        # hide next/prev by default
         self.setImageViewVisible('prev', False)
         self.setImageViewVisible('next', False)
-        
+        # image slider to control the image collection model
         self.imageSlider = ImageSlider(self.ui)
-        self.imageSlider.setModel(self._model)
+        self.imageSlider.setModel(self._imageModel)
+        self.imageSlider.ui.PrevImageCheck.toggled.connect(self.setPrevImageViewVisible)
+        self.imageSlider.ui.NextImageCheck.toggled.connect(self.setNextImageViewVisible)
         self.ui.layoutControls.addWidget(self.imageSlider)
         
-        self.timeSlider = TimeSlider(self.ui)
-        self.timeSlider.setModel(self._model)
-        self.ui.layoutControls.addWidget(self.timeSlider)
         
+        # RecorderView
+        self.recorderView = RecorderView(self.ui)
+        self.recorderView.setModel(self._recorderModel)
+        self.ui.layoutControls.addWidget(self.recorderView)
+        
+        
+        # RecordingView
         self.recordingView = RecordingView(self.ui)
-        self.recordingView.setModel(self._model)
+        self.recordingView.setModel(self._recordingModel)
         self.ui.layoutControls.addWidget(self.recordingView)
+        
         
         # setup key press eater
         self.eventEater = EventEater()
@@ -139,21 +149,21 @@ class StoryTimeWindow(object):
         self.eventEater.handlePaths = self.loadPaths
         self.ui.installEventFilter(self.eventEater)
         self.imageSlider.installEventFilter(self.eventEater)
-        self.timeSlider.installEventFilter(self.eventEater)
+        self.recorderView.installEventFilter(self.eventEater)
         
         # build some dynamic menus
         self.buildAudioInputsMenu()
         self.ui.menuFPS.setEnabled(False)
         # hookup menu actions
         self.ui.menuFile.aboutToShow.connect(self.fileMenuAboutToShow)
-        self.ui.actionNewRecording.triggered.connect(self.newRecording)
+        self.ui.actionNewRecording.triggered.connect(self._recordingModel.newRecording)
         self.ui.actionOpenRecording.triggered.connect(self.openRecording)
         self.ui.actionSaveRecordingAs.triggered.connect(self.saveRecordingAs)
         self.ui.actionExportMovie.triggered.connect(self.exportMovie)
         self.ui.actionExportForEditing.triggered.connect(self.exportForEditing)
         self.ui.actionOpenStoryTimeDir.triggered.connect(self.openStoryTimePath)
         self.ui.actionImportImages.triggered.connect(self.importImages)
-        self.ui.actionClearImages.triggered.connect(self._model.clearImages)
+        self.ui.actionClearImages.triggered.connect(self._imageModel.clearImages)
         self.ui.actionNewRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_N))
         self.ui.actionOpenRecording.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_O))
         self.ui.actionSaveRecordingAs.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_S))
@@ -168,13 +178,16 @@ class StoryTimeWindow(object):
         self.setImageViewVisible('next', visible)
     
     def setImageViewVisible(self, which, visible):
+        index = {'prev':0, 'cur':1, 'next':2}[which]
         if not hasattr(self, '{0}ImageView'.format(which)):
             return
         view = getattr(self, '{0}ImageView'.format(which))
         view.setVisible(visible)
-        self.ui.layoutImageViews.setStretch(view.index, int(visible))
+        self.ui.layoutImageViews.setStretch(index, int(visible))
     
     def buildAudioInputsMenu(self):
+        # TODO: Implement
+        return
         self.ui.menuAudioInputDevices.clear()
         self.ui.audioInputGroup = QActionGroup(self.ui)
         self.ui.audioInputGroup.triggered.connect(self.audioInputGroupTriggered)
@@ -213,14 +226,14 @@ class StoryTimeWindow(object):
         # set the image index data the same way a mapping would
         if event.key() in (Qt.Key_Space, Qt.Key_Period, Qt.Key_Right, Qt.Key_Down):
             # update time and frame
-            self.timeSlider.updateTime()
+            self.recorderView.updateTime()
             index = self._model.index(column=Mappings.curImageIndex)
             value = self._model.curImageIndex + 1
             self._model.setData(index, value)
             return True
         if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left, Qt.Key_Up):
             # update time and frame
-            self.timeSlider.updateTime()
+            self.recorderView.updateTime()
             index = self._model.index(column=Mappings.curImageIndex)
             value = self._model.curImageIndex - 1
             self._model.setData(index, value)
@@ -228,16 +241,16 @@ class StoryTimeWindow(object):
         
         # some time slider hotkeys
         if event.key() == Qt.Key_R:
-            self.timeSlider.recordBtnAction()
+            self.recorderView.recordBtnAction()
             return True
         if event.key() == Qt.Key_P:
-            self.timeSlider.togglePlayback()
+            self.recorderView.togglePlayback()
             return True
         if event.key() == Qt.Key_B:
-            self.timeSlider.toFirst()
+            self.recorderView.toFirst()
             return True
         if event.key() == Qt.Key_E:
-            self.timeSlider.toLast()
+            self.recorderView.toLast()
             return True
         if event.key() == Qt.Key_N:
             self.newRecording()
@@ -264,10 +277,6 @@ class StoryTimeWindow(object):
     
     def loadPaths(self, paths):
         self._model.loadPaths(paths)
-    
-    def newRecording(self):
-        self._model.newRecording()
-        LOG.debug('New recording')
     
     def openRecording(self):
         caption = 'Open Story Time Recording...'
@@ -349,13 +358,10 @@ class ImageView(QWidget):
     The image viewing widget for Story Time. Contains three graphics views
     for displaying the current, previous, and next images.
     """
-    def __init__(self, pixmapMapping, index, parent=None):
+    def __init__(self, parent=None):
         super(ImageView, self).__init__(parent)
         self.ui = utils.loadUi('views/imageView.ui', self)
         self._dataMapper = QDataWidgetMapper()
-        self.pixmapMapping = pixmapMapping
-        # for use when adjusting layout stretch
-        self.index = index
         self.ui.GraphicsView.setStyleSheet( 'QGraphicsView { border-style: none; }' )
     
     def getPixmap(self):
@@ -372,11 +378,11 @@ class ImageView(QWidget):
         graphicsView.setScene(scene)
         return item
 
-    def setModel(self, model):
+    def setModel(self, model, map):
         self._model = model
         self._dataMapper.setModel(model)
         self.ui.GraphicsPixmapItem = self.addPixmapItem(self.ui.GraphicsView)
-        self._dataMapper.addMapping(self, self.pixmapMapping, 'pixmap')
+        self._dataMapper.addMapping(self, map, 'pixmap')
         self._dataMapper.toFirst()
     
     def resizeEvent(self, event=None):
@@ -397,8 +403,6 @@ class ImageSlider(QWidget):
         self._dataMapper = QDataWidgetMapper()
         
         self.ui.ImageSlider.valueChanged.connect(self._dataMapper.submit)
-        self.ui.PrevImageCheck.toggled.connect(StoryTimeWindow.instance().setPrevImageViewVisible)
-        self.ui.NextImageCheck.toggled.connect(StoryTimeWindow.instance().setNextImageViewVisible)
     
     def getSliderMaximum(self):
         return self.ui.ImageSlider.maximum()
@@ -412,10 +416,10 @@ class ImageSlider(QWidget):
         self.ui.CacheImagesBtn.clicked.connect(self._model.cacheAllImages)
         self.ui.ClearCacheBtn.clicked.connect(self._model.clearCache)
         self._dataMapper.setModel(model)
-        self._dataMapper.addMapping(self.ui.ImagePath, Mappings.curImagePath, 'text')
-        self._dataMapper.addMapping(self.ui.ImageSlider, Mappings.curImageIndex, 'sliderPosition')
-        self._dataMapper.addMapping(self, Mappings.imageCount, 'sliderMaximum')
-        self._dataMapper.addMapping(self.ui.ImageSliderLabel, Mappings.curImageIndexLabel, 'text')
+        self._dataMapper.addMapping(self.ui.ImagePath, model.maps.curImagePath, 'text')
+        self._dataMapper.addMapping(self.ui.ImageSlider, model.maps.imageIndex, 'sliderPosition')
+        self._dataMapper.addMapping(self, model.maps.count, 'sliderMaximum')
+        #self._dataMapper.addMapping(self.ui.ImageSliderLabel, Mappings.curImageIndexLabel, 'text')
         self._dataMapper.toFirst()
         
     
@@ -424,6 +428,7 @@ class ImageSlider(QWidget):
         self.ui.ImageSlider.installEventFilter(filter)
         self.ui.CacheImagesBtn.installEventFilter(filter)
         self.ui.ClearCacheBtn.installEventFilter(filter)
+
 
 
 class RecordingView(QWidget):
@@ -443,95 +448,25 @@ class RecordingView(QWidget):
     
     def setSelection(self, current):
         LOG.debug('current selection: {0} {1}'.format(current.row(), current.column()))
-        StoryTimeWindow.instance().timeSlider.setModelIndex(current)
 
 
 
-class TimeSlider(QWidget):
+class RecorderView(QWidget):
     """
-    The TimeSlider widget for Story Time. Controls/displays the current
-    playback state of the current recording.
+    The Recorder widget for Story Time. Controls/displays the current
+    playback state of a recording with a time slider and playback controls.
     """
     def __init__(self, parent=None):
-        super(TimeSlider, self).__init__(parent)
+        super(RecorderView, self).__init__(parent)
         #self.setupUi(self)
         self.ui = utils.loadUi('views/timeSlider.ui', self)
         self._dataMapper = QDataWidgetMapper()
+        self._displayDataMapper = QDataWidgetMapper()
         
-        # used to keep track of playback time
-        self.time = QElapsedTimer()
-        self.timer = QTimer()
-        self.timer.timerEvent = self.updateTime
-        
-        # add context menu to audio
-        action = QAction('Open Audio Folder...', self.ui)
-        action.triggered.connect(self.openAudioFolder)
-        self.ui.AudioCheck.addAction(action)
-        
-        # hide hidden controls
-        self.ui.IsRecordingCheck.setVisible(False)
-        self.ui.IsPlayingCheck.setVisible(False)
-        self.ui.TimerInterval.setVisible(False)
-        
-        self.ui.TimeSlider.valueChanged.connect(self.timeSliderValueChanged)
-        self.ui.IsPlayingCheck.toggled.connect(self.updateIsPlaying)
-        self.ui.IsRecordingCheck.toggled.connect(self.updateIsRecording)
-        self.ui.AudioCheck.toggled.connect(self.audioCheckToggled)
-        self.ui.PlayBtn.clicked.connect(self.play)
-        self.ui.RecordBtn.clicked.connect(self.recordBtnAction)
-        self.ui.NewBtn.clicked.connect(StoryTimeWindow.instance().newRecording)
-    
-    @property
-    def timerInterval(self):
-        # TimerInterval's value should come from
-        # the models: self.recordings[index.row()].timerInterval
-        return self.ui.TimerInterval.value()
-        #return (1 / self._model.recordingFps) * 1000
-    
-    def setSliderMaximum(self, value):
-        self.ui.TimeSlider.setMaximum(value)
-        self.ui.TimeSliderProgress.repaint()
-        
-    def getSliderMaximum(self):
-        return self.ui.TimeSlider.maximum()
-    sliderMaximum = Property('int', getSliderMaximum, setSliderMaximum)
-    
-    def audioCheckToggled(self):
-        self._dataMapper.submit()
-    
-    def openAudioFolder(self):
-        dir_ = self._model.getStoryTimePath()
-        if os.path.isdir(dir_):
-            utils.openDir(dir_)
-    
-    def recordingIndexChanged(self):
-        if self.isPlaying and not self.isRecording:
-            self.play()
-    
-    def timeSliderValueChanged(self):
-        index = self._model.index(column=Mappings.curTime)
-        value = self.ui.TimeSlider.value()
-        self._model.setData(index, value)
-    
-    def updateIsPlaying(self, isPlaying):
-        # record button state
-        img = 'images/{0}.png'.format('stopBtn' if isPlaying else 'recordBtn')
-        self.ui.RecordBtn.setIcon(QIcon(img))
-        # enable/disable controls
-        setVisuallyEnabled(self.ui.PlayBtn, not isPlaying)
-        setVisuallyEnabled(self.ui.NewBtn, not isPlaying)
-        setVisuallyEnabled(self.ui.AudioCheck, not isPlaying)
-        setVisuallyEnabled(self.ui.RecordingName, not isPlaying)
-        setVisuallyEnabled(self.ui.RecordingImageCount, not isPlaying)
-        setVisuallyEnabled(self.ui.RecordingImageCountLabel, not isPlaying)
-        setVisuallyEnabled(self.ui.RecordingDurationDisplay, not isPlaying)
-    
-    def updateIsRecording(self, isRecording):
-        # bg color
-        style = 'background-color: rgb{0};'.format( (60, 25, 25) if isRecording else (40, 40, 40) )
-        self.ui.MainFrame.setStyleSheet(style)
-        # enable/disable controls
-        self.ui.TimeSlider.setEnabled(not isRecording)
+        self.ui.timeSlider.valueChanged.connect(self._dataMapper.submit)
+        self.ui.audioCheck.toggled.connect(self._dataMapper.submit)
+        self.ui.play.clicked.connect(self.play)
+        self.ui.record.clicked.connect(self.recordBtnAction)
     
     def recordBtnAction(self):
         if self.isRecording or self.isPlaying:
@@ -587,47 +522,109 @@ class TimeSlider(QWidget):
             self.ui.TimeSlider.setSliderPosition(self._model.recordingDuration)
             self._dataMapper.submit()
     
-    def updateTime(self, event=None):
-        if not (self.isPlaying or self.isRecording):
-            return
-        sec = self.time.elapsed() * 0.001
-        frames = int(sec * ((1/self.timerInterval)/1000))
-        self.ui.TimeSlider.setSliderPosition(frames)
-        # determine whether to loop or not
-        if not self.isRecording and frames >= self._model.recordingDuration:
-            # reached the end of playback
-            self.stop()
-        self.timeSliderValueChanged()
+    def toggleTimeDisplay(self):
+        self._displayDataMapper.itemDelegate().toggleTimeDisplay()
+        self._displayDataMapper.revert()
     
     def setModel(self, model):
         self._model = model
-        self.ui.TimeDisplay.clicked.connect(self._model.toggleTimeDisplay)
+        
         self._dataMapper.setModel(model)
-        # TODO: hookup 'timerInterval' to the new timerInterval float field thingy
-        self._dataMapper.addMapping(self.ui.TimerInterval, Mappings.timerInterval, 'value')
-        self._dataMapper.addMapping(self.ui.RecordingName, Mappings.name, 'text')
-        self._dataMapper.addMapping(self.ui.RecordingImageCount, Mappings.imageCount, 'text')
-        self._dataMapper.addMapping(self.ui.RecordingDurationDisplay, Mappings.timelineDurationDisplay, 'text')
-        self._dataMapper.addMapping(self, Mappings.timelineDuration, 'sliderMaximum')
-        self._dataMapper.addMapping(self.ui.AudioCheck, Mappings.audioEnabled, 'checked')
-        self._dataMapper.addMapping(self.ui.IsRecordingCheck, Mappings.isRecording, 'checked')
-        self._dataMapper.addMapping(self.ui.IsPlayingCheck, Mappings.isPlaying, 'checked')
-        self._dataMapper.addMapping(self.ui.TimeSlider, Mappings.curTime, 'sliderPosition')
-        self._dataMapper.addMapping(self.ui.TimeDisplay, Mappings.timeDisplay, 'text')
+        self._dataMapper.addMapping(self.ui.audioCheck, model.maps.audioEnabled, 'checked')
+        self._dataMapper.addMapping(self.ui.timeSlider, model.maps.frame, 'sliderPosition')
         self._dataMapper.toFirst()
-    
-    def setModelIndex(self, index):
-        self._dataMapper.setCurrentModelIndex(index)
+        
+        self._displayDataMapper.setModel(model)
+        self._displayDataMapper.setItemDelegate(RecorderViewDisplayDelegate(self))
+        self._displayDataMapper.addMapping(self.ui.name, model.maps.name)
+        self._displayDataMapper.addMapping(self.ui.duration, model.maps.duration)
+        self._displayDataMapper.addMapping(self.ui.imageCount, model.maps.imageCount)
+        self._displayDataMapper.addMapping(self.ui.fps, model.maps.fps)
+        self._displayDataMapper.addMapping(self.ui.timeSlider, model.maps.timelineDuration)
+        self._displayDataMapper.addMapping(self.ui.timeDisplay, model.maps.frame)
+        self._displayDataMapper.toFirst()
+        self.ui.timeDisplay.clicked.connect(self.toggleTimeDisplay)
     
     def installEventFilter(self, filter):
-            # install the event filter on all appropriate objects
-        self.ui.TimeSlider.installEventFilter(filter)
-        self.ui.TimeDisplay.installEventFilter(filter)
-        self.ui.AudioCheck.installEventFilter(filter)
-        self.ui.PlayBtn.installEventFilter(filter)
-        self.ui.RecordBtn.installEventFilter(filter)
-        self.ui.NewBtn.installEventFilter(filter)
+        # install the event filter on all appropriate objects
+        self.ui.timeSlider.installEventFilter(filter)
+        self.ui.timeDisplay.installEventFilter(filter)
+        self.ui.audioCheck.installEventFilter(filter)
+        self.ui.play.installEventFilter(filter)
+        self.ui.record.installEventFilter(filter)
 
+
+class RecorderViewDisplayDelegate(QItemDelegate):
+    """
+    Remaps incoming times/durations to frames or timecodes.
+    
+    time, frame, timelineDuration,
+    isRecording, isPlaying,
+    audioEnabled, videoEnabled,
+    name, duration, imageCount, fps
+    """
+    
+    displayTimeInFrames = False
+    
+    def toggleTimeDisplay(self):
+        self.displayTimeInFrames = not self.displayTimeInFrames
+    
+    def imageCountLabel(self, count):
+        if count == 0:
+            return 'no images'
+        elif count == 1:
+            return '1 image'
+        elif count > 1:
+            return '{0} images'.format(count)
+    
+    def setEditorData(self, editor, index):
+        if index.column() == 1: # frame
+            fps = index.model().index(column=10).data()
+            if fps is not None:
+                time = index.data()
+                if not self.displayTimeInFrames:
+                    time = utils.getTimecode(time, fps)
+                editor.setText(str(time))
+        
+        elif index.column() == 2: # timeline duration
+            fps = index.model().index(column=10).data()
+            frames = int(index.data() * fps)
+            editor.setMaximum(frames)
+        
+        elif index.column() == 7: # name
+            editor.setText(index.data())
+        
+        elif index.column() == 8: # duration
+            fps = index.model().index(column=10).data()
+            if fps is not None:
+                time = utils.getTimecode(int(index.data() * fps), fps)
+                editor.setText(time)
+        
+        elif index.column() == 9: # imageCount
+            editor.setText(self.imageCountLabel(index.data()))
+    
+    def setModelData(self, editor, model, index):
+        pass
+        
+    def updateIsPlaying(self, isPlaying):
+        # record button state
+        img = 'images/{0}.png'.format('stopBtn' if isPlaying else 'recordBtn')
+        self.ui.RecordBtn.setIcon(QIcon(img))
+        # enable/disable controls
+        setVisuallyEnabled(self.ui.PlayBtn, not isPlaying)
+        setVisuallyEnabled(self.ui.NewBtn, not isPlaying)
+        setVisuallyEnabled(self.ui.AudioCheck, not isPlaying)
+        setVisuallyEnabled(self.ui.RecordingName, not isPlaying)
+        setVisuallyEnabled(self.ui.RecordingImageCount, not isPlaying)
+        setVisuallyEnabled(self.ui.RecordingImageCountLabel, not isPlaying)
+        setVisuallyEnabled(self.ui.RecordingDurationDisplay, not isPlaying)
+    
+    def updateIsRecording(self, isRecording):
+        # bg color
+        style = 'background-color: rgb{0};'.format( (60, 25, 25) if isRecording else (40, 40, 40) )
+        self.ui.MainFrame.setStyleSheet(style)
+        # enable/disable controls
+        self.ui.TimeSlider.setEnabled(not isRecording)
 
 
 def setVisuallyEnabled(control, enabled):

@@ -17,7 +17,6 @@ import utils
 __all__ = [
     'Recording',
     'ImageCollection',
-    'PixmapCache',
 ]
 
 LOG = logging.getLogger('storyTime.data')
@@ -35,7 +34,7 @@ class Recording(object):
     which simplifies the interface to the actual data created by Story Time.
     """
     
-    attrs = ('name', 'fps', 'duration', 'imageCount')
+    attrs = ('name', 'duration', 'imageCount', 'fps')
     
     def __init__(self, name='Recording', frames=None, audio=None):
         self.name = name
@@ -49,6 +48,9 @@ class Recording(object):
     def __getitem__(self, key):
         if key in self.attrs:
             return getattr(self, key)
+    
+    def has_key(self, key):
+        return key in self.attrs
     
     @property
     def fps(self):
@@ -233,91 +235,4 @@ class ImageCollection(object):
         index = self.index(image)
         if index is not None:
             self.index = index
-
-
-
-class PixmapCache(object):
-    def __init__(self):
-        self.maxCount = 150
-        self.clear()
-
-    def __getitem__(self, name):
-        return self._data[self.normKey(name)]
-
-    def __setitem__(self, name, value):
-        key = self.normKey(name)
-        if key not in self._list:
-            self._list.append(key)
-        self._data[key] = value
-        self.checkCount()
-
-    def __delitem__(self, name):
-        key = self.normKey(name)
-        del self._data[key]
-        self._list.remove(key)
-
-    @property
-    def count(self):
-        return len(self._list)
-
-    def checkCount(self):
-        """Check the current cache count and removed images if necessary"""
-        while self.count > max(0, self.maxCount):
-            self.pop()
-
-    def clear(self):
-        self._list = []
-        self._data = {}
-
-    def pop(self):
-        if self.count > 0:
-            del self[self._list[0]]
-
-    def items(self):
-        return self._data.items()
-
-    def keys(self):
-        return self._data.keys()
-
-    def values(self):
-        return self._data.values()
-
-    def has_key(self, key):
-        return self._data.has_key(self.normKey(key))
-
-    def add(self, path):
-        self.getPixmap(path)
-
-    def getPixmap(self, path):
-        if not isinstance(path, (str, unicode)):
-            return QPixmap()
-        if os.path.isfile(path):
-            if self.has_key(path):
-                # pixmap already loaded
-                return self[path]
-            else:
-                # load the pixmap
-                pixmap = QPixmap(path)
-                self[path] = pixmap
-                return pixmap
-        return QPixmap()
-
-    def normKey(self, path):
-        return os.path.normpath(path).lower()
-
-    def cache(self, paths, keepOld=False):
-        normpaths = [self.normKey(p) for p in paths]
-        removed = 0
-        # remove unneded paths
-        for k in self.keys():
-            if k not in normpaths:
-                del self[k]
-                removed += 1
-        # cache the rest
-        added = 0
-        for p in paths:
-            if not self.has_key(p):
-                self.getPixmap(p)
-                added += 1
-        LOG.debug('Updated pixmap cache. {0} removed, {1} added'.format(removed, added))
 

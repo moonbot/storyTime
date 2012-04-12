@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>748</width>
-    <height>91</height>
+    <width>756</width>
+    <height>87</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -50,29 +50,20 @@
          <number>4</number>
         </property>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,0,0,0,0,0,0,0,0">
+         <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,0,0,0,0,0">
           <item>
-           <widget class="QLineEdit" name="RecordingName">
+           <widget class="QLabel" name="name">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="minimumSize">
              <size>
-              <width>80</width>
-              <height>30</height>
+              <width>150</width>
+              <height>0</height>
              </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>250</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="font">
-             <font>
-              <family>Tahoma</family>
-              <pointsize>11</pointsize>
-             </font>
-            </property>
-            <property name="acceptDrops">
-             <bool>false</bool>
             </property>
             <property name="text">
              <string>My Recording</string>
@@ -85,21 +76,55 @@
              <number>0</number>
             </property>
             <item>
-             <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1">
+             <layout class="QHBoxLayout" name="horizontalLayout" stretch="1">
               <property name="spacing">
                <number>4</number>
               </property>
               <item>
-               <widget class="QLabel" name="RecordingImageCount">
+               <widget class="QLabel" name="imageCount">
+                <property name="font">
+                 <font>
+                  <family>Tahoma</family>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>-</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_4">
+              <property name="spacing">
+               <number>4</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="duration">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
-                  <width>0</width>
+                  <width>70</width>
                   <height>0</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>70</width>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="font">
                  <font>
+                  <family>Tahoma</family>
                   <pointsize>10</pointsize>
+                  <stylestrategy>PreferDefault</stylestrategy>
                  </font>
                 </property>
                 <property name="text">
@@ -108,7 +133,19 @@
                </widget>
               </item>
               <item>
-               <widget class="QLabel" name="RecordingImageCountLabel">
+               <widget class="QLabel" name="fps">
+                <property name="minimumSize">
+                 <size>
+                  <width>20</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>20</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="font">
                  <font>
                   <family>Tahoma</family>
@@ -116,43 +153,27 @@
                  </font>
                 </property>
                 <property name="text">
-                 <string>image(s)</string>
+                 <string>0</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label">
+                <property name="font">
+                 <font>
+                  <family>Tahoma</family>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>fps</string>
                 </property>
                </widget>
               </item>
              </layout>
-            </item>
-            <item>
-             <widget class="QLabel" name="RecordingDurationDisplay">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>85</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>85</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="font">
-               <font>
-                <family>Tahoma</family>
-                <pointsize>10</pointsize>
-                <stylestrategy>PreferDefault</stylestrategy>
-               </font>
-              </property>
-              <property name="text">
-               <string>00:00:00.00</string>
-              </property>
-             </widget>
             </item>
            </layout>
           </item>
@@ -170,24 +191,7 @@
            </spacer>
           </item>
           <item>
-           <widget class="QCheckBox" name="IsPlayingCheck">
-            <property name="text">
-             <string>_2</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="IsRecordingCheck">
-            <property name="text">
-             <string>_1</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QDoubleSpinBox" name="TimerInterval"/>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="AudioCheck">
+           <widget class="QCheckBox" name="audioCheck">
             <property name="font">
              <font>
               <family>Tahoma</family>
@@ -206,7 +210,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="TimeDisplay">
+           <widget class="QPushButton" name="timeDisplay">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -235,14 +239,14 @@
              <enum>Qt::NoFocus</enum>
             </property>
             <property name="text">
-             <string>00:00:00:00</string>
+             <string>0</string>
             </property>
            </widget>
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
-             <widget class="QPushButton" name="PlayBtn">
+             <widget class="QPushButton" name="play">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
@@ -274,7 +278,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="RecordBtn">
+             <widget class="QPushButton" name="record">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
@@ -305,40 +309,12 @@
               </property>
              </widget>
             </item>
-            <item>
-             <widget class="QPushButton" name="NewBtn">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>40</width>
-                <height>30</height>
-               </size>
-              </property>
-              <property name="font">
-               <font>
-                <family>Tahoma</family>
-                <pointsize>10</pointsize>
-               </font>
-              </property>
-              <property name="focusPolicy">
-               <enum>Qt::NoFocus</enum>
-              </property>
-              <property name="text">
-               <string>New</string>
-              </property>
-             </widget>
-            </item>
            </layout>
           </item>
          </layout>
         </item>
         <item>
-         <widget class="QSlider" name="TimeSlider">
+         <widget class="QSlider" name="timeSlider">
           <property name="focusPolicy">
            <enum>Qt::NoFocus</enum>
           </property>
@@ -357,7 +333,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QProgressBar" name="TimeSliderProgress">
+         <widget class="QProgressBar" name="timeSliderProgress">
           <property name="maximumSize">
            <size>
             <width>16777215</width>
@@ -388,9 +364,9 @@
  <resources/>
  <connections>
   <connection>
-   <sender>TimeSlider</sender>
+   <sender>timeSlider</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>TimeSliderProgress</receiver>
+   <receiver>timeSliderProgress</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -404,9 +380,9 @@
    </hints>
   </connection>
   <connection>
-   <sender>TimeSlider</sender>
+   <sender>timeSlider</sender>
    <signal>rangeChanged(int,int)</signal>
-   <receiver>TimeSliderProgress</receiver>
+   <receiver>timeSliderProgress</receiver>
    <slot>setRange(int,int)</slot>
    <hints>
     <hint type="sourcelabel">
