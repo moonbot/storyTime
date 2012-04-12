@@ -81,13 +81,7 @@ class AudioRecording(object):
     AudioPlayer to handle recording and playback.
     """
     
-    @staticmethod
-    def fromFile(filename):
-        ar = AudioRecording()
-        ar.load(filename)
-        return ar
-    
-    def __init__(self):
+    def __init__(self, filename=None):
         self.filename = None
         self.duration = 0
         self.inputDeviceIndex = defaultInputDeviceIndex()
@@ -96,6 +90,8 @@ class AudioRecording(object):
         self._tempFile = None
         self._recorder = None
         self._player = None
+        if filename is not None:
+            self.load(filename)
     
     def __del__(self):
         if self.isRecording or self.isPlaying:

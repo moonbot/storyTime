@@ -15,6 +15,15 @@ import utils
 
 LOG = logging.getLogger('storyTime.controllers')
 
+FPS_OPTIONS = {
+    24:'Film (24 fps)',
+    25:'PAL (25 fps)',
+    30:'NTSC (30 fps)',
+    48:'Show (48 fps)',
+    50:'PAL Field (50 fps)',
+    60:'NTSC Field (60 fps)',
+}
+
 
 class EventEater(QObject):
     def eventFilter(self, obj, event):

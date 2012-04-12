@@ -19,157 +19,226 @@ import subprocess
 import sys
 import pickle
 
-LOG = logging.getLogger('storyTime.models')
-
-# TODO: cluster mappings that affect each other or create event pool presets
-Mappings = utils.enum(
-    # recording props
-    'name', 'durationDisplay', 'imageCount', 'duration', 'fps', 'timerInterval', 
-    
-    # model normal attrs
-    'recordings', 'recordingCount', 'isRecording', 'isPlaying', 'curTime',
-    'isTimeDisplayFrames', 'audioInputDeviceIndex', 'audioOutputDeviceIndex',
-    # model properties (from imageCollection or pixmapCache)
-    'audioEnabled', 'recordingCount', 'imageCollectionCount', 'curImageIndex',
-    'curImageIndexLabel', 'curImagePath', 'curImage', 'prevImage', 'nextImage',
-    
-    # special (info from both model and a recording)
-    'timelineDuration', 'timelineDurationDisplay', 'timeDisplay',
-    
-    'end',
-)
+LOG = logging.getLogger(__name__)
 
 FFMPEG = 'ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg'
 
 
-class PixmapCache(object):
-    def __init__(self):
-        self.maxCount = 150
-        self.clear()
+class MappingModel(QAbstractItemModel):
+    """
+    The MappingModel is designed for a model that uses
+    a `maps` attribute to provide an enum of available properties.
+    """
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(cls, '_inst'):
+            cls._inst = super(MappingModel, cls).__new__(cls, *args, **kwargs)
+        else:
+            def init_pass(self, *args, **kwargs): pass
+            cls.__init__ = init_pass
+        return cls._inst
     
-    def __getitem__(self, name):
-        return self._data[self.normKey(name)]
+    def __init__(self, parent=None):
+        super(MappingModel, self).__init__(parent)
+        self.maps = enum()
     
-    def __setitem__(self, name, value):
-        key = self.normKey(name)
-        if key not in self._list:
-            self._list.append(key)
-        self._data[key] = value
-        self.checkCount()
+    def __getitem__(self, key):
+        if key in self.maps.names:
+            return getattr(self, key)
     
-    def __delitem__(self, name):
-        key = self.normKey(name)
-        del self._data[key]
-        self._list.remove(key)
-    
-    @property
-    def count(self):
-        return len(self._list)
-    
-    def checkCount(self):
-        """Check the current cache count and removed images if necessary"""
-        while self.count > max(0, self.maxCount):
-            self.pop()
-    
-    def clear(self):
-        self._list = []
-        self._data = {}
-    
-    def pop(self):
-        if self.count > 0:
-            del self[self._list[0]]
-    
-    def items(self):
-        return self._data.items()
-    
-    def keys(self):
-        return self._data.keys()
-    
-    def values(self):
-        return self._data.values()
+    def __setitem__(self, key, value):
+        if key in self.maps.names:
+            setattr(self, key, value)
     
     def has_key(self, key):
-        return self._data.has_key(self.normKey(key))
+        return key in self.maps.names
     
-    def add(self, path):
-        self.getPixmap(path)
+    def allMappingsChanged(self, row=0):
+        for i in range(len(self.maps.names)):
+            index = self.index(row, i)
+            self.dataChanged.emit(index, index)
     
-    def getPixmap(self, path):
-        if not isinstance(path, (str, unicode)):
-            return QPixmap()
-        if os.path.isfile(path):
-            if self.has_key(path):
-                # pixmap already loaded
-                return self[path]
-            else:
-                # load the pixmap
-                pixmap = QPixmap(path)
-                self[path] = pixmap
-                return pixmap
-        return QPixmap()
+    def mappingChanged(self, mapping, row=0):
+        allMappings = self.influencedMappings(mapping)
+        for m in allMappings:
+            index = self.index(row, m)
+            self.dataChanged.emit(index, index)
     
-    def normKey(self, path):
-        return os.path.normpath(path).lower()
+    def influencedMappings(self, mapping):
+        return [mapping]
     
-    def cache(self, paths, keepOld=False):
-        normpaths = [self.normKey(p) for p in paths]
-        removed = 0
-        # remove unneded paths
-        for k in self.keys():
-            if k not in normpaths:
-                del self[k]
-                removed += 1
-        # cache the rest
-        added = 0
-        for p in paths:
-            if not self.has_key(p):
-                self.getPixmap(p)
-                added += 1
-        LOG.debug('Updated pixmap cache. {0} removed, {1} added'.format(removed, added))
+    def dataForMapping(self, mapping, role=Qt.DisplayRole, row=0):
+        index = self.index(row, mapping)
+        return self.data(index, role)
+    
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return
+        
+        key = self.maps.names[index.column()]
+        if role in (Qt.DisplayRole, Qt.EditRole):
+            if self.has_key(key):
+                return self[key]
+    
+    def setDataForMapping(self, mapping, value, role=Qt.EditRole, row=0):
+        index = self.index(row, mapping)
+        self.setData(index, value, role)
+    
+    def setData(self, index, value, role=Qt.EditRole):
+        if not index.isValid():
+            return
+        
+        key = self.maps.names[index.column()]
+        if role in (Qt.EditRole, ):
+            if self.has_key(key):
+                self[key] = value
+    
+    def rowCount(self, parent):
+        return 1
+    
+    def columnCount(self, parent):
+        return 1
+    
+    def index(self, row=0, column=0, parent=None):
+        return self.createIndex(row, column)
+    
+    def parent(self, index):
+        return QModelIndex()
 
 
-
-class StoryTimeModel(QAbstractItemModel):
+class ImageCollectionModel(MappingModel):
+    """
+    The ImageCollectionModel is a singular (non-list) model that provides
+    access to images through the ImageCollection class. Despite the fact
+    that ImageCollection's hold a list of images, this model is designed
+    to represent one 'current' image and the images immediately next to it
+    in an ordered list.
+    """
     def __init__(self, parent=None):
-        super(StoryTimeModel, self).__init__(parent)
+        super(ImageCollectionModel, self).__init__(parent)
+        self.maps = utils.enum(
+            'count', 'imageIndex', 'images',
+            'curImage', 'prevImage', 'nextImage',
+            'curImagePath', 'prevImagePath', 'nextImagePath',
+        )
         
-        self.recordingProps = ('name', 'fps', 'timerInterval', 'duration', 'durationDisplay', 'imageCount')
-        self.specialProps = ('timelineDuration', 'timeDisplay')
-        
-        # Recording / Playback
-        # all recording collections
-        self.recordings = []
-        # playback/recording states
-        self.isRecording = False
-        self.isPlaying = False
-        # current time of the playback timeline in frames
-        self.curTime = 0
-        # current display mode of the time (time code vs frames)
-        self.isTimeDisplayFrames = False
-        # whether to record audio for the current recording or not
-        self.audioInputDeviceIndex = audio.defaultInputDeviceIndex()
-        self.audioOutputDeviceIndex = audio.defaultOutputDeviceIndex()
-        # available fps options
-        self._fpsOptions = FPS_OPTIONS
-        # custom fps option
-        self.customFps = 12
-        
-        
-        self.audioEnabled = True
         # current image collection
         self.imageCollection = ImageCollection()
         # the pixmap cache for efficiency
         self.pixmapCache = PixmapCache()
-        
-        self.newRecording()
-        LOG.debug('Model Initialized')
+        LOG.debug('ImageCollectionModel initialized')
     
     def __repr__(self):
-        return '<StoryTimeModel | {0.recordingCount} recording(s)>'.format(self)
+        return '<ImageCollectionModel | {0} image(s)>'.format(len(self.imageCollection))
     
+    @property
+    def count(self):
+        return len(self.imageCollection)
     
+    @property
+    def imageIndex(self):
+        return self.imageCollection.index
+    @imageIndex.setter
+    def imageIndex(self, value):
+        self.imageCollection.index = value
+        self.pixmapCache.add(self.nextImage)
     
-    # properties
+    @property
+    def images(self):
+        return self.imageCollection.images
+    @images.setter
+    def images(self, value):
+        self.imageCollection.images = value
+
+    @property
+    def curImage(self):
+        return self.pixmapCache.getPixmap(self.curImagePath)
+
+    @property
+    def prevImage(self):
+        return self.pixmapCache.getPixmap(self.prevImagePath)
+
+    @property
+    def nextImage(self):
+        return self.pixmapCache.getPixmap(self.nextImagePath)
+    
+    @property
+    def curImagePath(self):
+        return self.imageCollection.current()
+    
+    @property
+    def prevImagePath(self):
+        return self.imageCollection.prev(seek=False)
+    
+    @property
+    def nextImagePath(self):
+        return self.imageCollection.next(seek=False)
+    
+    def clearImages(self):
+        self.images = []
+        self.pixmapCache.clear()
+        self.allMappingsChanged()
+
+
+
+class RecorderModel(MappingModel):
+    """
+    The RecorderModel is a singular (non-list) model that contains
+    information useful for a functioning timeline. This includes
+    the current time, framerate, and information like the current
+    state of playback for the timeline.
+    
+    The RecorderModel holds a Recording on which it operates.
+    """
+    def __init__(self, parent=None):
+        super(StoryTimeModel, self).__init__(parent)
+        self.maps = utils.enum(
+            'time', 'fps', 'frame', 'duration',
+            'isRecording', 'isPlaying',
+            'audioEnabled', 'videoEnabled',
+        )
+        
+        self._recording = None
+        self.time = 0
+        self.fps = 24
+        self._isRecording = False
+        self._isPlaying = False
+        self._audioEnabled = True
+        self._videoEnabled = True
+        LOG.debug('RecorderModel Initialized')
+    
+    def __repr__(self):
+        return '<RecorderModel | {0.time}>'.format(self)
+    
+    @property
+    def frame(self):
+        return self.time * self.fps
+    @frame.setter
+    def frame(self, value):
+        self.time = float(value) / self.fps
+    
+    @property
+    def duration(self):
+        if self.isRecording:
+            # return the current time ceilinged to the nearest half minute
+            minuteFrames = self.fps * 30
+            minutes = math.floor(float(self.time) / minuteFrames) + 2
+            return int(minutes * minuteFrames)
+        elif self._recording is not None:
+            return self._recording.duration
+    
+    @property
+    def isRecording(self):
+        return self._isRecording
+    @isRecording.setter
+    def isRecording(self, value):
+        self._isRecording = value
+    
+    @property
+    def isPlaying(self):
+        return self._isPlaying
+    @isPlaying.setter
+    def isPlaying(self, value):
+        self._isPlaying = value
     
     @property
     def audioEnabled(self):
@@ -183,138 +252,13 @@ class StoryTimeModel(QAbstractItemModel):
                 self._audioEnabled = value
     
     @property
-    def recordingCount(self):
-        return len(self.recordings)
-    
-    @property
-    def imageCollectionCount(self):
-        return len(self.images)
-    
-    @property
-    def curImageIndex(self):
-        return self.imageCollection.seek
-    
-    @property
-    def curImageIndexLabel(self):
-        return '{1:0{0.imagePadding}}/{0.imageCollectionCount}'.format(self, self.curImageIndex + 1)
-    
-    @property
-    def curImagePath(self):
-        return self.imageCollection.current()
-    
-    @property
-    def curImage(self):
-        return self.pixmapCache.getPixmap(self.curImagePath)
-    
-    @property
-    def prevImage(self):
-        return self.pixmapCache.getPixmap(self.imageCollection.prev(seek=False))
-    
-    @property
-    def nextImage(self):
-        return self.pixmapCache.getPixmap(self.imageCollection.next(seek=False))
-    
-    @property
-    def imagePadding(self):
-        return len(str(self.imageCollectionCount))
-    
-    @property
-    def images(self):
-        return self.imageCollection.images
-    @images.setter
-    def images(self, value):
-        self.imageCollection.images = value
-        self.imageDataChanged()
+    def videoEnabled(self):
+        return self._videoEnabled
+    @videoEnabled.setter
+    def videoEnabled(self, value):
+        self._videoEnabled = value
     
     
-    # 'special' properties
-    
-    def timelineDuration(self, index):
-        recording = self.recordings[index.row()]
-        if self.isRecording:
-            # return the current time ceilinged to the nearest half minute
-            minuteFrames = recording.fps * 30
-            minutes = math.floor(float(self.curTime) / minuteFrames) + 2
-            return int(minutes * minuteFrames)
-        else:
-            ad = self.secondsToFrames(index, recording.audioDuration)
-            fd = recording.frameDuration
-            #vd = recording.videuDuration
-            return max(ad, fd)
-    
-    def timelineDurationDisplay(self, index):
-        dur = self.timelineDuration(index)
-        recording = self.recordings[index.row()]
-        return utils.getTimecode(dur, recording.fps)
-    
-    def timeDisplay(self, index):
-        """ Return the current time as a timecode """
-        recording = self.recordings[index.row()]
-        if self.isTimeDisplayFrames:
-            return '{0}'.format(self.curTime)
-        else:
-            return utils.getTimecode(self.curTime, recording.fps)
-    
-    
-    
-    # methods
-    
-    def toggleTimeDisplay(self):
-        self.isTimeDisplayFrames = not self.isTimeDisplayFrames
-        self.mappingChanged(QModelIndex(), Mappings.isTimeDisplayFrames)
-        self.mappingChanged(QModelIndex(), Mappings.timeDisplay)
-    
-    def secondsToFrames(self, index, seconds, fps=None):
-        recording = self.recordings[index.row()]
-        if fps is None:
-            fps = recording.fps
-        return int(seconds * fps)
-        
-    def getStoryTimePath(self):
-        return os.path.expanduser('~/storyTime')
-    
-    def getAudioPath(self, name):
-        filename = utils.normalizeFilename('{date}_{name}'.format(name=name, date=utils.timeString()))
-        path = os.path.join(self.getStoryTimePath(), filename)
-        return path
-    
-    def getRecordingPath(self, name):
-        filename = utils.normalizeFilename('{date}_{name}'.format(name=name, date=utils.timeString()))
-        path = os.path.join(self.getStoryTimePath(), filename)
-        return path
-    
-    def moveAudioRecording(self, src, dst, recording):
-        if os.path.isfile(src):
-            os.remove(src)
-        recording.save(dst)
-    
-    def getNewRecordingName(self, index=None):
-        if index is None:
-            index = self.recordingCount + 1
-        if len(self.images) > 0:
-            f = os.path.splitext(os.path.basename(self.images[0]))[0]
-            name = '{f} {0:03}'.format(index, f=f)
-            return name
-        else:
-            return 'Story Time Recording {0:03}'.format(index)
-    
-    def newRecording(self):
-        new = RecordingCollection()
-        new.name = self.getNewRecordingName()
-        new.audio.inputDeviceIndex = self.audioInputDeviceIndex
-        new.audio.outputDeviceIndex = self.audioOutputDeviceIndex
-        self.addRecording(new)
-    
-    def addRecording(self, recording):
-        self.insertRows(len(self.recordings), [recording])
-    
-    def insertRows(self, position, recordings, parent=QModelIndex()):
-        rows = len(recordings)
-        self.beginInsertRows(parent, position, position + rows - 1)
-        for r in recordings:
-            self.recordings.insert(position, r)
-        self.endInsertRows()
-        return True
     
     
     def deleteRecording(self, index):
@@ -437,7 +381,7 @@ class StoryTimeModel(QAbstractItemModel):
             return
         with open(filename, 'rb') as fp:
             data = pickle.load(fp)
-        recording = RecordingCollection.fromString(data)
+        recording = Recording.fromDict(data)
         self.addRecording(recording)
         
         # attempt to load audio
@@ -535,25 +479,6 @@ class StoryTimeModel(QAbstractItemModel):
             self.pixmapCache.add(self.nextImage)
             self.imageDataChanged()
             self.recordingDataChanged()
-    
-    def loadImage(self, imageIndex):
-        self.imageCollection.seek = imageIndex
-        # update cache
-        self.pixmapCache.add(self.nextImage)
-        self.imageDataChanged()
-    
-    def clearImages(self):
-        self.images = []
-        self.pixmapCache.clear()
-        self.imageDataChanged()
-    
-    # qt model methods
-    
-    def rowCount(self, parent):
-        return len(self.recordings)
-    
-    def columnCount(self, parent):
-        return 3
     
     def data(self, index, role = Qt.DisplayRole):
         if not index.isValid():
@@ -680,50 +605,52 @@ class StoryTimeModel(QAbstractItemModel):
             return True
         
         return False
+
+
+
+class RecordingModel(QAbstractItemModel):
+    def __init__(self, parent=None):
+        super(RecordingsModel, self).__init__(parent)
+        self.maps = utils.enum(*Recording.attrs)
+        self.recordings = []
+        self.newRecording()
+        LOG.debug('RecordingModel initialized')
+
+    def __repr__(self):
+        return '<RecordingModel | {0} recording(s)>'.format(self.rowCount())
     
-    def imageDataChanged(self):
-        attrs = (
-            'imageCollectionCount',
-            'curImageIndex',
-            'curImageIndexLabel',
-            'curImagePath',
-            'curImage',
-            'prevImage',
-            'nextImage',
-        )
-        self.multiMappingChanged(self.index(), attrs)
+    def getNewRecordingName(self, index=None):
+        if index is None:
+            index = self.recordingCount + 1
+        if len(self.images) > 0:
+            f = os.path.splitext(os.path.basename(self.images[0]))[0]
+            name = '{f} {0:03}'.format(index, f=f)
+            return name
+        else:
+            return 'Story Time Recording {0:03}'.format(index)
     
-    def recordingDataChanged(self, index):
-        attrs = (
-            'recordingIndex',
-            'recordingName',
-            'recordingFps',
-            'recordingDuration',
-            'recordingDurationDisplay',
-            'recordingImageCount',
-        )
-        self.multiMappingChanged(index, attrs)
+    def newRecording(self):
+        new = Recording()
+        new.name = self.getNewRecordingName()
+        new.audio.inputDeviceIndex = self.audioInputDeviceIndex
+        new.audio.outputDeviceIndex = self.audioOutputDeviceIndex
+        self.addRecording(new)
     
-    def timeDataChanged(self, index):
-        attrs = (
-            'curTime',
-            'timeDisplay',
-        )
-        self.multiMappingChanged(index, attrs)
+    def addRecording(self, recording):
+        self.insertRows(len(self.recordings), [recording])
     
-    def multiMappingChanged(self, index, attrs):
-        for attr in attrs:
-            self.mappingChanged(index, getattr(Mappings, attr))
+    def insertRows(self, position, recordings, parent=QModelIndex()):
+        rows = len(recordings)
+        self.beginInsertRows(parent, position, position + rows - 1)
+        for r in recordings:
+            self.recordings.insert(position, r)
+        self.endInsertRows()
+        return True
     
-    def mappingChanged(self, index, mapping):
-        index = self.index(index.row(), mapping)
-        self.dataChanged.emit(index, index)
-    
-    def index(self, row=0, column=0, parent=None):
-        return self.createIndex(row, column)
-    
-    def parent(self, index):
-        """ There is only one viable index, and therefore no feasible parent """
-        return QModelIndex()
+    def rowCount(self, index=None):
+        return len(self.recordings)
+
+    def columnCount(self, index=None):
+        return 1
 
 

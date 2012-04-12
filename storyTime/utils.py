@@ -12,7 +12,7 @@ import subprocess
 import sys
 import unicodedata
 
-LOG = logging.getLogger('storyTime.utils')
+LOG = logging.getLogger(__name__)
 
 
 def isFrozen():
@@ -102,6 +102,14 @@ def normalizeFilename(filename):
     validChars = "-_.() %s%s" % (string.ascii_letters, string.digits)
     clean = unicodedata.normalize('NFKD', unicode(filename)).encode('ASCII', 'ignore')
     return ''.join(c for c in clean if c in validChars).replace(' ', '_')
+
+def getStoryTimePath():
+    return os.path.expanduser('~/storyTime')
+
+def getStoryTimeFilePath(name):
+    filename = normalizeFilename('{date}_{name}'.format(name=name, date=timeString()))
+    path = os.path.join(getStoryTimePath(), filename)
+    return path
 
 
 # time based media functions

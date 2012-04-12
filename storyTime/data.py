@@ -8,267 +8,79 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
 from audio import AudioRecording
+from frames import FrameRecording
 import copy
 import logging
 import os
+import utils
+
+__all__ = [
+    'Recording',
+    'ImageCollection',
+    'PixmapCache',
+]
 
 LOG = logging.getLogger('storyTime.data')
-
-
-FPS_OPTIONS = {
-    24:'Film (24 fps)',
-    25:'PAL (25 fps)',
-    30:'NTSC (30 fps)',
-    48:'Show (48 fps)',
-    50:'PAL Field (50 fps)',
-    60:'NTSC Field (60 fps)',
-}
 
 DEFAULT_IMAGE_TYPES = [
     'jpg', 'jpeg', 'png', 'tif', 'tiff', 'tga', 'ico', 'gif',
 ]
 
-class FrameRecording(object):
-    """
-    A recording created by Story Time. Times are stored
-    in frames as Story Time is primarily a frame-based tool.
-    
-    FrameRecordings provide a pretty expansive interface for modification.
-    This includes subscription and iteration akin to a list,
-    eg. myRecording[4:12] to retrieve frames 4 through 12.
-    """
-    def __init__(self, fps=24):
-        self.fps = fps
-        self.start = 0
-        self._frames = []
-    
-    def __repr__(self):
-        return '<FrameRecording | {0.start}-{0.end}@{0.fps} | {1} frame(s)>'.format(self, len(self.frames))
-    
-    def __iter__(self):
-        for f in self.frames:
-            yield f
-    
-    def __getitem__(self, key):
-        if not isinstance(key, (int, slice)):
-            raise TypeError
-        return self.frames[key]
-    
-    def __delitem__(self, key):
-        if not isinstance(key, (int, slice)):
-            raise TypeError
-        del self._frames[key]
-    
-    def __len__(self):
-        return len(self._frames)
-    
-    def __add__(self, other):
-        if isinstance(other, FrameRecording):
-            new = copy.deepcopy(self)
-            for f in other:
-                new.append(f.image, f.duration)
-            return new
-        return NotImplemented
-    
-    @property
-    def frames(self):
-        return self._frames
-    
-    @property
-    def end(self):
-        return self.start + self.duration
-    
-    @property
-    def duration(self):
-        return sum([f.duration for f in self.frames])
-    
-    @property
-    def images(self):
-        return sorted(list(set([f.image for f in self.frames])))
-    
-    def clear(self):
-        self._frames = []
-    
-    def append(self, image, duration):
-        f = Frame(image, duration)
-        self.appendFrame(f)
-    
-    def appendFrame(self, f):
-        if not isinstance(f, Frame):
-            raise TypeError('expected a Frame, got {0}'.format(type(f).__name__))
-        self._frames.append(f)
-    
-    def insert(self, index, image, duration):
-        f = Frame(image, duration)
-        self._frames.insert(index, f)
-    
-    def pop(self, index):
-        if index < len(self.frames):
-            return self._frames.pop(index)
-    
-    
-    def relativeTime(self, time):
-        """ Convert the given absolute time to a time relative to start """
-        return time - self.start
-    
-    def absoluteTime(self, time):
-        """ Convert the given relative time to an absolute time """
-        return time + self.start
-    
-    def getIndex(self, time):
-        """ Return the index of the frame at the given time """
-        if len(self) == 0:
-            return
-        rtime = self.relativeTime(time)
-        if rtime < 0:
-            return 0
-        elif rtime >= self.duration:
-            return len(self.frames) - 1
-        t = 0
-        for i, f in enumerate(self.frames):
-            t += f.duration
-            if rtime < t:
-                return i
-    
-    def getFrame(self, time):
-        """ Return the frame at the given time """
-        index = self.getIndex(time)
-        if index is not None:
-            return self.frames[self.getIndex(time)]
-        
-    def inTime(self, index):
-        if index < len(self):
-            rtime = sum([f.duration for f in self.frames[:index]])
-            return self.absoluteTime(rtime)
-        return self.absoluteTime(0)
-    
-    def outTime(self, index):
-        if index < len(self):
-            rtime = sum([f.duration for f in self.frames[:index+1]])
-            return self.absoluteTime(rtime)
-        return self.absoluteTime(0)
-    
 
-
-
-class Frame(object):
+class Recording(object):
     """
-    A specific frame within a FrameRecording. Frames only care about the
-    image they represent and how long that image is displayed. Their
-    cut information is stored in the recording.
+    Recording keeps track of a FrameRecording, AudioRecording, and VideoRecording.
+    
+    These three recording objects can be managed as one through this class
+    which simplifies the interface to the actual data created by Story Time.
     """
-    def __init__(self, image, duration):
-        """
-        `image` - the full path to the image this frame represents
-        `duration` - the frame duration of the image, min = 1
-        """
-        self.image = image
-        self.duration = duration
     
-    def __eq__(self, other):
-        if isinstance(other, Frame):
-            return self.image == other.image and self.duration == other.duration
-        return NotImplemented
-    
-    def __ne__(self, other):
-        result = self.__eq__(other)
-        if result is NotImplemented:
-            return result
-        return not result
-    
-    def __repr__(self):
-        return 'Frame({0!r}, {1})'.format(os.path.basename(self.image), self.duration)
-    
-    def getImage(self):
-        if self._image is None:
-            return ''
-        return self._image
-    def setImage(self, value):
-        if isinstance(value, (str, unicode)):
-            self._image = os.path.normpath(value)
-        else:
-            self._image = None
-    image = property(getImage, setImage)
-    
-    def getDuration(self):
-        return self._duration
-    def setDuration(self, value):
-        self._duration = max(1, int(value))
-    duration = property(getDuration, setDuration)
-    
-    def serialize(self):
-        return {'image':self.image, 'duration':self.duration}
-    
-    @staticmethod
-    def deserialize(dictonary):
-        return Frame(dictonary['image'], dictonary['duration'])
-
-class VideoRecording(object):
-    pass
-
-
-class RecordingCollection(object):
-    """
-    RecordingCollection keeps track of a FrameRecording and AudioRecording pair.
-    The main Story Time model creates a list of recording collections to
-    associate frame timings with audio recordings.
-    """
+    attrs = ('name', 'fps', 'duration', 'imageCount')
     
     def __init__(self, name='Recording', frames=None, audio=None):
         self.name = name
-        self.frames = frames if frames is not None else FrameRecording()
-        self.audio = audio if audio is not None else AudioRecording()
-        # self.video = video if video is not None else VideoRecording()
+        self.framerec = frames if frames is not None else FrameRecording()
+        self.audiorec = audio if audio is not None else AudioRecording()
+        # self.videorec = video if video is not None else VideoRecording()
     
     def __repr__(self):
-        return '<RecordingCollection {0!r} {1!r} {2!r}>'.format(self.name, self.frames, self.audio)
+        return '<Recording {0!r} {1!r} {2!r}>'.format(self.name, self.framerec, self.audiorec)
     
-    def __len__(self):
-        return len(self.frames)
+    def __getitem__(self, key):
+        if key in self.attrs:
+            return getattr(self, key)
     
     @property
     def fps(self):
-        return self.frames.fps
-    
-    @property
-    def timerInterval(self):
-        return (1 / self.fps) * 1000
-    
-    @property
-    def imageCount(self):
-        return len(self.frames)
-    
-    @property
-    def audioDuration(self):
-        return self.audio.duration
-    
-    @property
-    def frameDuration(self):
-        return self.frames.duration
+        return self.framerec.fps
     
     @property
     def duration(self):
-        return self.frameDuration
+        return self.framerec.duration
+    
+    @property
+    def imageCount(self):
+        return len(self.framerec)
     
     @staticmethod
-    def fromString(recordingDict):
-        """ Return a new RecordingCollection using the given string """
+    def fromDict(recordingDict):
+        """ Return a new Recording using the given string """
         fr = FrameRecording(recordingDict['fps'])
         for f in recordingDict['frames']:
             fr.appendFrame(Frame.deserialize(f))
-        ar = AudioRecording()
-        return RecordingCollection(recordingDict['name'], fr, ar)
+        ar = AudioRecording(recordingDict['audioFile'])
+        return Recording(recordingDict['name'], fr, ar)
     
     def toString(self):
-        """ Return this RecordingCollection as a serialized string """
+        """ Return this Recording as a serialized string """
         serializedFrames = []
-        for f in self.frames.frames:
+        for f in self.framerec.frames:
             serializedFrames.append(f.serialize())
-        fps = self.frames.fps
-        tempFile = self.audio.tempFile
+        fps = self.framerec.fps
+        tempFile = self.audiorec.tempFile
         recordingDict = {
             'frames':serializedFrames, 'fps':fps,
-            'audioFile': self.audio.filename, 'name':self.name
+            'audioFile': self.audiorec.filename, 'name':self.name
         }
         return recordingDict
 
@@ -279,13 +91,13 @@ class ImageCollection(object):
     An image collection can be seeded with a directory or combination of images.
     It can then be sorted and organized for better usability.
     
-    Image collections also provide a seeking interface to keep track of which
-    image was last sampled and making it easy to get the previous/next frame.
+    Image collections also provide a current index to keep track of which
+    image is being sampled and making it easy to get the previous/next image.
     Collection seeking will loop both ways.
     """
     def __init__(self, images=None, imageTypes=DEFAULT_IMAGE_TYPES):
         self.imageTypes = imageTypes
-        self._seek = 0
+        self._index = 0
         self._images = images if images is not None else []
     
     def __iter__(self):
@@ -306,11 +118,13 @@ class ImageCollection(object):
         return len(self._images)
     
     def __repr__(self):
-        return '<ImageCollection {0} image(s) | @{1.seek}>'.format(len(self.images), self)
+        return '<ImageCollection {0} image(s) | @{1.index}>'.format(len(self), self)
     
-    def getImages(self):
+    @property
+    def images(self):
         return self._images
-    def setImages(self, value):
+    @images.setter
+    def images(self, value):
         self._images = []
         if isinstance(value, (tuple, list)):
             for i in value:
@@ -318,24 +132,24 @@ class ImageCollection(object):
                     self._images.append(os.path.normpath(i))
         elif isinstance(value, (str, unicode)):
             self._images.append(os.path.normpath(value))
-    images = property(getImages, setImages)
     
-    def getSeek(self):
-        if self._seek < 0 or self._seek >= len(self.images):
+    @property
+    def index(self):
+        if self._index not in range(len(self.images)):
             # this desync is handled by clamping
-            self._seek = max(min(self._seek, len(self.images)-1), 0)
-        return self._seek
-    def setSeek(self, value):
+            self._index = max(min(self._index, len(self) - 1), 0)
+        return self._index
+    @index.setter
+    def index(self, value):
         if not isinstance(value, int):
-            raise TypeError
-        self._seek = self.validateIndex(value)
-    seek = property(getSeek, setSeek)
+            raise TypeError('expected int, got {0}'.format(type(value).__name__))
+        self._index = self.validateIndex(value)
     
     def validateIndex(self, value):
-        if len(self._images) == 0:
+        if len(self) == 0:
             return 0
         else:
-            return value % len(self._images)
+            return value % len(self)
     
     def isValidImage(self, image):
         types = [x.strip('.').lower() for x in self.imageTypes]
@@ -343,7 +157,8 @@ class ImageCollection(object):
         return ext.lower() in types
     
     def clear(self):
-        self._images = []
+        self.images = []
+        self.index = 0
     
     def index(self, image):
         """
@@ -359,9 +174,9 @@ class ImageCollection(object):
         This is like a combined append/extend functionality.
         """
         if isinstance(image, (str, unicode)):
-            self._images.append(os.path.normpath(image))
+            self.images.append(os.path.normpath(image))
         elif isinstance(image, (list, tuple)):
-            self._images.extend([os.path.normpath(i) for i in image])
+            self.images.extend([os.path.normpath(i) for i in image])
     
     def extend(self, images):
         self.append(images)
@@ -380,42 +195,129 @@ class ImageCollection(object):
     def loadSequence(self, image):
         """ Load the image sequence associated with the given image """
         LOG.warning('loadSequence not yet implemented')
-        self._images = image
+        self.images = image
     
     def sort(self, cmp_=None, key=None, reverse=False):
         if cmp_ is None:
             # case insensitive sort
             cmp_ = lambda x,y: cmp(x.lower(), y.lower())
-        self._images.sort(cmp=cmp_, key=key, reverse=reverse)
+        self.images.sort(cmp=cmp_, key=key, reverse=reverse)
     
     def current(self):
         if len(self.images) == 0:
             return
-        return self[self.seek]
+        return self[self.index]
     
     def prev(self, seek=True):
         if len(self.images) == 0:
             return
         if seek:
-            self.seek -= 1
-            i = self.seek
+            self.index -= 1
+            i = self.index
         else:
-            i = self.validateIndex(self.seek - 1)
+            i = self.validateIndex(self.index - 1)
         return self[i]
     
     def next(self, seek=True):
         if len(self.images) == 0:
             return
         if seek:
-            self.seek += 1
-            i = self.seek
+            self.index += 1
+            i = self.index
         else:
-            i = self.validateIndex(self.seek + 1)
+            i = self.validateIndex(self.index + 1)
         return self[i]
     
     def seekToImage(self, image):
         """ Seek to the given image, if its in the collection. Otherwise ignore """
         index = self.index(image)
         if index is not None:
-            self.seek = index
+            self.index = index
+
+
+
+class PixmapCache(object):
+    def __init__(self):
+        self.maxCount = 150
+        self.clear()
+
+    def __getitem__(self, name):
+        return self._data[self.normKey(name)]
+
+    def __setitem__(self, name, value):
+        key = self.normKey(name)
+        if key not in self._list:
+            self._list.append(key)
+        self._data[key] = value
+        self.checkCount()
+
+    def __delitem__(self, name):
+        key = self.normKey(name)
+        del self._data[key]
+        self._list.remove(key)
+
+    @property
+    def count(self):
+        return len(self._list)
+
+    def checkCount(self):
+        """Check the current cache count and removed images if necessary"""
+        while self.count > max(0, self.maxCount):
+            self.pop()
+
+    def clear(self):
+        self._list = []
+        self._data = {}
+
+    def pop(self):
+        if self.count > 0:
+            del self[self._list[0]]
+
+    def items(self):
+        return self._data.items()
+
+    def keys(self):
+        return self._data.keys()
+
+    def values(self):
+        return self._data.values()
+
+    def has_key(self, key):
+        return self._data.has_key(self.normKey(key))
+
+    def add(self, path):
+        self.getPixmap(path)
+
+    def getPixmap(self, path):
+        if not isinstance(path, (str, unicode)):
+            return QPixmap()
+        if os.path.isfile(path):
+            if self.has_key(path):
+                # pixmap already loaded
+                return self[path]
+            else:
+                # load the pixmap
+                pixmap = QPixmap(path)
+                self[path] = pixmap
+                return pixmap
+        return QPixmap()
+
+    def normKey(self, path):
+        return os.path.normpath(path).lower()
+
+    def cache(self, paths, keepOld=False):
+        normpaths = [self.normKey(p) for p in paths]
+        removed = 0
+        # remove unneded paths
+        for k in self.keys():
+            if k not in normpaths:
+                del self[k]
+                removed += 1
+        # cache the rest
+        added = 0
+        for p in paths:
+            if not self.has_key(p):
+                self.getPixmap(p)
+                added += 1
+        LOG.debug('Updated pixmap cache. {0} removed, {1} added'.format(removed, added))
 
