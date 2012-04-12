@@ -120,7 +120,8 @@ class ImageCollection(object):
         return len(self._images)
     
     def __repr__(self):
-        return '<ImageCollection {0} image(s) | @{1.index}>'.format(len(self), self)
+        return 'hi'
+        return '<ImageCollection {0} image(s) | @{1}>'.format(len(self.images), self.index)
     
     @property
     def images(self):
@@ -137,7 +138,7 @@ class ImageCollection(object):
     
     @property
     def index(self):
-        if self._index not in range(len(self.images)):
+        if self._index not in range(len(self)):
             # this desync is handled by clamping
             self._index = max(min(self._index, len(self) - 1), 0)
         return self._index
@@ -162,7 +163,7 @@ class ImageCollection(object):
         self.images = []
         self.index = 0
     
-    def index(self, image):
+    def imageIndex(self, image):
         """
         Return the index of the given image within the collection
         Returns None if the image is not in the collection
@@ -232,7 +233,7 @@ class ImageCollection(object):
     
     def seekToImage(self, image):
         """ Seek to the given image, if its in the collection. Otherwise ignore """
-        index = self.index(image)
+        index = self.imageIndex(image)
         if index is not None:
             self.index = index
 

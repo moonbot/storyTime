@@ -267,6 +267,7 @@ class ImageCollectionModel(MappingModel):
     @curImagePath.setter
     def curImagePath(self, value):
         self.imageCollection.seekToImage(value)
+        self.mappingChanged(self.maps.curImagePath)
     
     @property
     def prevImagePath(self):
@@ -311,7 +312,7 @@ class ImageCollectionModel(MappingModel):
         self.allMappingsChanged()
     
     def influencedMappings(self, mapping):
-        if mapping == self.maps.imageIndex:
+        if mapping in (self.maps.imageIndex, self.maps.curImagePath):
             return [
                 self.maps.curImage,
                 self.maps.prevImage,
@@ -359,6 +360,7 @@ class RecorderModel(MappingModel):
         
         # used to keep track of playback time
         self._playTimer = QElapsedTimer()
+        self._startTime = 0
         self._updateTimer = QTimer()
         self._updateTimer.timerEvent = self.updateTime
         LOG.debug('RecorderModel Initialized')
@@ -384,29 +386,27 @@ class RecorderModel(MappingModel):
         self._time = value
         # if not recording, update image collection
         if not self.isRecording:
-            if self.isPlaying and self.frame >= self.recording.duration:
-                self.stop() # or loop
             self.imageModel.imagePath = self.imagePathAtTime(value)
     
     @property
     def frame(self):
         if self.recording is None:
             return 0
-        return self.time * self.recording.fps
+        return int(self.time * self.recording.fps)
     @frame.setter
     def frame(self, value):
         if self.recording is not None:
-            self.time = int(float(value) / self.recording.fps)
+            self.time = float(value) / self.recording.fps
     
     @property
     def timelineDuration(self):
         if self.isRecording:
             # return the current time ceilinged to the nearest half minute
-            minuteFrames = self.recording.fps * 30
-            minutes = math.floor(float(self.frame) / minuteFrames) + 2
-            return int(minutes * minuteFrames)
+            halfMins = math.floor(self.time / 30.0) + 2
+            return int(halfMins * 30)
         elif self.recording is not None:
-            return self.recording.duration
+            return self.recording.duration / self.recording.fps
+        return 0
     
     @property
     def isRecording(self):
@@ -440,15 +440,40 @@ class RecorderModel(MappingModel):
         return self._recording
     
     @property
-    def timerInterval(self):
+    def updateInterval(self):
         if self.recording is not None:
             return (1.0 / self.recording.fps) * 1000
     
     def record(self):
-        pass
+        if self.isRecording or len(self.imageModel.images) == 0:
+            return
+        self._isRecording = True
+        self.play()
     
     def play(self):
-        pass
+        if self.isPlaying:
+            return
+        self._isPlaying = True
+        self._startTime = self.time
+        self._playTimer.restart()
+        self._updateTimer.start(self.updateInterval)
+    
+    def stop(self):
+        if not self.isPlaying:
+            return
+        self._updateTimer.stop()
+        self._isPlaying = False
+        if self.isRecording:
+            self._isRecording = False
+            self.recordCurrentFrame()
+    
+    def updateTime(self, event=None):
+        if self.isPlaying:
+            self.time = self._playTimer.elapsed() * 0.001 + self._startTime
+            self.allMappingsChanged()
+            if not self.isRecording and self.frame >= self.recording.duration:
+                self.stop() # or loop
+            
     
     def recordingChanged(self):
         """
@@ -472,8 +497,10 @@ class RecorderModel(MappingModel):
     
     def recordFrame(self, imagePath):
         """ Record the given image onto the current Recording """
+        if not self.isRecording:
+            return
         framerec = self.recording.framerec
-        frameIndex = framerec.getIndex(self.time)
+        frameIndex = framerec.getIndex(self.frame)
         if frameIndex is None:
             # the first frame
             frameIndex = 0
@@ -482,18 +509,18 @@ class RecorderModel(MappingModel):
             frameIndex += 1
         # get out time of the previous frame
         outTime = framerec.outTime(frameIndex - 1)
-        duration = self.time - outTime
+        duration = self.frame - outTime
         if duration == 0:
-            LOG.warning('skipping frame recording, duration is 0: {0}. outTime {1} curTime {2}'.format(image, outTime, self.time))
+            LOG.warning('skipping frame recording, duration is 0: {0}. outTime {1} curTime {2}'.format(imagePath, outTime, self.frame))
             return
         LOG.debug('frameIndex: {3}, {1:>4} - {2:<4}: {0}'.format(os.path.basename(imagePath), outTime, outTime + duration, frameIndex))
         framerec.insert(frameIndex, imagePath, duration)
+        self.allMappingsChanged()
     
-    
-    def updateTime(self, event=None):
-        if self.isPlaying or self.isRecording:
-            time = self._playTimer.elapsed() * 0.001
-            self.setDataForMapping(self.maps.time, time)
+    def influencedMappings(self, mapping):
+        if mapping in (self.maps.time, self.maps.frame):
+            return [self.maps.time, self.maps.frame]
+        return [mapping]
 
 
 

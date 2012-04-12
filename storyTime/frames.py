@@ -7,6 +7,8 @@ Created by Bohdon Sayre on 2012-04-12.
 Copyright (c) 2012 Moonbot Studios. All rights reserved.
 """
 
+import os
+
 
 class FrameRecording(object):
     """

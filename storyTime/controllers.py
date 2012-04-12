@@ -82,7 +82,7 @@ class EventEater(QObject):
 class StoryTimeWindow(object):
     """
     The Main Story Time Window. Loads and attaches each of the main control
-    widgets (ImageView, ImageSlider, TimeSlider) and connects them to a model.
+    widgets and connects them to a model.
     """
     
     _instance = None
@@ -105,7 +105,6 @@ class StoryTimeWindow(object):
         self._imageModel = ImageCollectionModel(self.ui)
         self._recordingModel = RecordingModel(self.ui)
         self._recorderModel = RecorderModel(self._imageModel, self._recordingModel, self.ui)
-        
         
         # ImageViews
         # current image
@@ -134,6 +133,7 @@ class StoryTimeWindow(object):
         # RecorderView
         self.recorderView = RecorderView(self.ui)
         self.recorderView.setModel(self._recorderModel)
+        self.imageSlider.imageChanged.connect(self.recorderView.recordFrame)
         self.ui.layoutControls.addWidget(self.recorderView)
         
         
@@ -226,31 +226,21 @@ class StoryTimeWindow(object):
         # set the image index data the same way a mapping would
         if event.key() in (Qt.Key_Space, Qt.Key_Period, Qt.Key_Right, Qt.Key_Down):
             # update time and frame
-            self.recorderView.updateTime()
-            index = self._model.index(column=Mappings.curImageIndex)
-            value = self._model.curImageIndex + 1
-            self._model.setData(index, value)
+            value = self._imageModel.imageIndex + 1
+            self._imageModel.setDataForMapping(self._imageModel.imageIndex, value)
             return True
         if event.key() in (Qt.Key_Backspace, Qt.Key_Comma, Qt.Key_Left, Qt.Key_Up):
             # update time and frame
-            self.recorderView.updateTime()
-            index = self._model.index(column=Mappings.curImageIndex)
-            value = self._model.curImageIndex - 1
-            self._model.setData(index, value)
+            value = self._imageModel.imageIndex - 1
+            self._imageModel.setDataForMapping(self._imageModel.imageIndex, value)
             return True
         
         # some time slider hotkeys
         if event.key() == Qt.Key_R:
-            self.recorderView.recordBtnAction()
+            self.recorderView.record()
             return True
         if event.key() == Qt.Key_P:
             self.recorderView.togglePlayback()
-            return True
-        if event.key() == Qt.Key_B:
-            self.recorderView.toFirst()
-            return True
-        if event.key() == Qt.Key_E:
-            self.recorderView.toLast()
             return True
         if event.key() == Qt.Key_N:
             self.newRecording()
@@ -276,7 +266,7 @@ class StoryTimeWindow(object):
             utils.openDir(dir_)
     
     def loadPaths(self, paths):
-        self._model.loadPaths(paths)
+        self._imageModel.loadPaths(paths)
     
     def openRecording(self):
         caption = 'Open Story Time Recording...'
@@ -396,13 +386,21 @@ class ImageSlider(QWidget):
     which image is currently displayed, as well as labels providing information
     about the current image path as well as how many images there are.
     """
+    
+    imageChanged = Signal(str)
+    
     def __init__(self, parent=None):
         super(ImageSlider, self).__init__(parent)
         #self.setupUi(self)
         self.ui = utils.loadUi('views/imageSlider.ui', self)
         self._dataMapper = QDataWidgetMapper()
         
-        self.ui.ImageSlider.valueChanged.connect(self._dataMapper.submit)
+        self.ui.ImageSlider.valueChanged.connect(self.imageSliderChanged)
+    
+    def imageSliderChanged(self):
+        print('IMAGE CHANGED {0}'.format(self._model.curImagePath))
+        self._dataMapper.submit()
+        self.imageChanged.emit(self._model.curImagePath)
     
     def getSliderMaximum(self):
         return self.ui.ImageSlider.maximum()
@@ -442,7 +440,6 @@ class RecordingView(QWidget):
     
     def setModel(self, model):
         self._model = model
-        print 'Recording View Model Set'
         self.ui.tableView.setModel(model)       
         self.ui.tableView.selectionModel().currentChanged.connect(self.setSelection)
     
@@ -466,61 +463,31 @@ class RecorderView(QWidget):
         self.ui.timeSlider.valueChanged.connect(self._dataMapper.submit)
         self.ui.audioCheck.toggled.connect(self._dataMapper.submit)
         self.ui.play.clicked.connect(self.play)
-        self.ui.record.clicked.connect(self.recordBtnAction)
-    
-    def recordBtnAction(self):
-        if self.isRecording or self.isPlaying:
-            self.stop()
-        else:
-            self.record()
-    
-    
-    def getIsRecording(self):
-        return self.ui.IsRecordingCheck.checkState() == Qt.Checked
-    def setIsRecording(self, value):
-        self.ui.IsRecordingCheck.setCheckState(Qt.Checked if value else Qt.Unchecked)
-        index = self._model.index(column=Mappings.isRecording)
-        self._model.setData(index, value)
-    isRecording = property(getIsRecording, setIsRecording)
-    
-    def getIsPlaying(self):
-        return self.ui.IsPlayingCheck.checkState() == Qt.Checked
-    def setIsPlaying(self, value):
-        self.ui.IsPlayingCheck.setCheckState(Qt.Checked if value else Qt.Unchecked)
-        index = self._model.index(column=Mappings.isPlaying)
-        self._model.setData(index, value)
-    isPlaying = property(getIsPlaying, setIsPlaying)
+        self.ui.record.clicked.connect(self.record)
     
     def record(self):
-        if len(self._model.images) > 0:
-            self.isRecording = True
-            self.play()
+        if self._model.isRecording or self._model.isPlaying:
+            self.stop()
+        else:
+            self._model.record()
     
-    def play(self, time=0):
-        self.isPlaying = True
-        self.time.restart()
-        self.timer.start(self.timerInterval)
+    def play(self):
+        self._model.play()
     
     def stop(self):
-        self.isRecording = False
-        self.isPlaying = False
-        self.timer.stop()
+        self._model.stop()
     
     def togglePlayback(self):
-        if self.isRecording or self.isPlaying:
+        if self._model.isRecording or self._model.isPlaying:
             self.stop()
         else:
             self.play()
     
-    def toFirst(self):
-        if not self.isPlaying and not self.isRecording:
-            self.ui.TimeSlider.setSliderPosition(0)
-            self._dataMapper.submit()
-    
-    def toLast(self):
-        if not self.isPlaying and not self.isRecording:
-            self.ui.TimeSlider.setSliderPosition(self._model.recordingDuration)
-            self._dataMapper.submit()
+    def recordFrame(self, imagePath=None):
+        if imagePath is None:
+            self._model.recordCurrentFrame
+        else:
+            self._model.recordFrame(imagePath)
     
     def toggleTimeDisplay(self):
         self._displayDataMapper.itemDelegate().toggleTimeDisplay()
@@ -590,6 +557,7 @@ class RecorderViewDisplayDelegate(QItemDelegate):
             fps = index.model().index(column=10).data()
             frames = int(index.data() * fps)
             editor.setMaximum(frames)
+            editor.setTickInterval(fps)
         
         elif index.column() == 7: # name
             editor.setText(index.data())
@@ -633,78 +601,3 @@ def setVisuallyEnabled(control, enabled):
     control.setStyleSheet(style)
 
 
-
-class StoryTimeControl(object):
-    
-    #audioHandler = AudioHandler()
-    UPDATE_INTERVAL = 500
-    
-    
-    def ctl_process_export(self, caption, operatingSystem):
-        """
-        Export the current application state to a Final Cut Pro XML file.
-        
-        `caption` -- the caption of the file browsing dialog
-        `operatingSystem` -- the operating system to export the file to
-        """
-        if len(self.images.get()) > 0:
-            path = self.view_browse_save_as(caption)
-            if path is not None and path != '':
-                fcpkw = {
-                    'name':os.path.splitext(os.path.split(path)[1])[0],
-                    'images':zip(self.images.get(), self.create_frames_list()),
-                    'audioPath':self.audioPath.get(),
-                    'fps':self.fps.get(),
-                    'ntsc':(self.fps.get() % 30 == 0),
-                    'OS':operatingSystem
-                }
-                with open(path, 'w') as exportFile:
-                    exportFile.write(FcpXml(**fcpkw).getStr())
-                self.ctl_make_audio_path()
-    
-    def to_xml(self):
-        """Create a StoryTime XML string from the current application state"""
-        xmlDoc = xml.dom.minidom.Document()
-        stElement = xmlDoc.createElement('storyTime')
-        xmlDoc.appendChild(stElement)
-        fpsElement = xmlDoc.createElement('fps')
-        stElement.appendChild(fpsElement)
-        fpsText = xmlDoc.createTextNode(str(self.fps.get()))
-        fpsElement.appendChild(fpsText)
-        audioElement = xmlDoc.createElement('audio')
-        stElement.appendChild(audioElement)
-        audioText = xmlDoc.createTextNode(self.audioPath.get())
-        audioElement.appendChild(audioText)
-        framesElement = xmlDoc.createElement('frames')
-        stElement.appendChild(framesElement)
-        for i in range(0, len(self.timing_data.get())):
-            frameElement = xmlDoc.createElement('frame')
-            framesElement.appendChild(frameElement)
-            pathElement = xmlDoc.createElement('path')
-            frameElement.appendChild(pathElement)
-            pathText = xmlDoc.createTextNode(self.timing_data.get()[i]['image'])
-            pathElement.appendChild(pathText)
-            msElement = xmlDoc.createElement('ms')
-            frameElement.appendChild(msElement)
-            msText = xmlDoc.createTextNode(str(self.timing_data.get()[i]['timing']))
-            msElement.appendChild(msText)
-        return xmlDoc.toprettyxml('\t', '\n')
-    
-    def from_xml(self, xmlStr):
-        """Update the application state based on a StoryTime XML string"""
-        xmlStr = xmlStr.replace('\n', '')
-        xmlStr = xmlStr.replace('\t', '')
-        xmlDoc = xml.dom.minidom.parseString(xmlStr)
-        mainElement = xmlDoc.getElementsByTagName('storyTime')[0]
-        fps = int(mainElement.getElementsByTagName('fps')[0].childNodes[0].nodeValue)
-        audioPath = mainElement.getElementsByTagName('audio')[0].childNodes[0].nodeValue
-        framesElement = mainElement.getElementsByTagName('frames')[0]
-        images = []
-        times = []
-        for frameElement in framesElement.childNodes:
-            images.append(frameElement.childNodes[0].childNodes[0].nodeValue)
-            times.append(int(frameElement.childNodes[1].childNodes[0].nodeValue))
-        self.fps.set(fps)
-        self.images.set(images)
-        self.times.set(times)
-        self.audioPath.set(audioPath)       
