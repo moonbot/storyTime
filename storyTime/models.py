@@ -651,7 +651,7 @@ class RecordingModel(QAbstractItemModel):
         return len(self.recordings)
 
     def columnCount(self, index=None):
-        return 1
+        return 1 
         
     def headerData(self, section orientation, role):
         if role == Qt.DisplayRole:
@@ -661,7 +661,7 @@ class RecordingModel(QAbstractItemModel):
                 return QString("Recording %1").arg(section)
 
     def rowsMoved(parent=QModelIndex(), start, end, destination, row):
-        self.beginMoveRows()
+        self.beginMoveRows(parent, start, end, parent, destination)
         
         self.endMoveRows()
 
