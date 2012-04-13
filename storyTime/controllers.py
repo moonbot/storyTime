@@ -257,10 +257,9 @@ class StoryTimeWindow(object):
         return False
     
     def fileMenuAboutToShow(self):
-        hasRecording = self._model.recordingCount > 0
-        self.ui.actionSaveRecordingAs.setEnabled(hasRecording)
-        self.ui.actionExportMovie.setEnabled(hasRecording)
-        self.ui.actionExportForEditing.setEnabled(hasRecording)
+        self.ui.actionSaveRecordingAs.setEnabled(self._recordingModel.hasRecording)
+        self.ui.actionExportMovie.setEnabled(self._recordingModel.hasRecording)
+        self.ui.actionExportForEditing.setEnabled(self._recordingModel.hasRecording)
     
     def openStoryTimePath(self):
         dir_ = self._model.getStoryTimePath()
@@ -440,11 +439,11 @@ class RecordingView(QWidget):
         super(RecordingView, self).__init__(parent)
         self.ui = utils.loadUi('views/recordingsView.ui', self)
         self.ui.tableView.verticalHeader().setMovable(True)
-        self.ui.NewBtn.clicked.connect(StoryTimeWindow.instance().newRecording)
     
     def setModel(self, model):
         self._model = model
-        self.ui.tableView.setModel(model)       
+        self.ui.tableView.setModel(model)   
+        self.ui.newBtn.clicked.connect(self._model.newRecording)
         self.ui.tableView.selectionModel().currentChanged.connect(self.setSelection)
     
     def setSelection(self, current):

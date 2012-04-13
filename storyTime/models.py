@@ -683,6 +683,9 @@ class RecordingModel(QAbstractItemModel):
     def addRecording(self):
         self.insertRows(self.rowCount(), 1)
         return self.recordings[-1]
+        
+    def hasRecording(self):
+        return len(recordings) == 0
     
     def insertRows(self, position, rows, parent=QModelIndex()):
         self.beginInsertRows(parent, position, position + rows - 1)
@@ -720,7 +723,7 @@ class RecordingModel(QAbstractItemModel):
     def index(self, row, column, parent=None):
         return self.createIndex(row, column)
         
-    def headerData(self, section orientation, role):
+    def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole:
             if orientation == Qt.Horizontal:
                 return QString("Name")
@@ -730,7 +733,7 @@ class RecordingModel(QAbstractItemModel):
     def parent(self, index):
         return QModelIndex()
 
-    def rowsMoved(parent=QModelIndex(), start, end, destination, row):
+    def rowsMoved(parent, start, end, destination, row):
         self.beginMoveRows(parent, start, end, parent, destination)
         
         self.endMoveRows()

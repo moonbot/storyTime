@@ -31,6 +31,12 @@
         <property name="dragEnabled">
          <bool>true</bool>
         </property>
+        <property name="dragDropMode">
+         <enum>QAbstractItemView::DragDrop</enum>
+        </property>
+        <property name="defaultDropAction">
+         <enum>Qt::MoveAction</enum>
+        </property>
         <property name="selectionBehavior">
          <enum>QAbstractItemView::SelectRows</enum>
         </property>
@@ -50,6 +56,24 @@
          <bool>false</bool>
         </attribute>
        </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QPushButton" name="deleteBtn">
+          <property name="text">
+           <string>New Recording</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="newBtn">
+          <property name="text">
+           <string>Edit Recording Name</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>
