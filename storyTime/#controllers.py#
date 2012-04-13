@@ -435,6 +435,7 @@ class RecordingView(QWidget):
         super(RecordingView, self).__init__(parent)
         self.ui = utils.loadUi('views/recordingsView.ui', self)
         self.ui.tableView.verticalHeader().setMovable(True)
+        self.ui.NewBtn.clicked.connect(StoryTimeWindow.instance().newRecording)
     
     def setModel(self, model):
         self._model = model
