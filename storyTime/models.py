@@ -29,8 +29,10 @@ Mappings = utils.enum(
     'end',
 )
 
-FFMPEG = 'ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg'
-
+if sys.platform in ('win32', 'win64'):
+    FFMPEG = "bin\\windows\\ffmpeg.exe".replace("/","\\")
+elif sys.platform == 'darwin':
+    FFMPEG = "bin/mac/ffmpeg.exe"
 
 class PixmapCache(object):
     def __init__(self):
@@ -220,7 +222,13 @@ class StoryTimeModel(QAbstractItemModel):
     audioEnabled = property(getAudioEnabled, setAudioEnabled)
     
     def getStoryTimePath(self):
-        return os.path.expanduser('~/storyTime')
+        path = os.path.expanduser('~/storyTime')
+        if not os.path.exists(path):
+            try:
+                os.makedirs(path)
+            except Exception, e:
+                LOG.error("Unable to make dirs for path: {0}".format(path))
+        return path
     
     def getAudioPath(self, name):
         filename = utils.normalizeFilename('{date}_{name}'.format(name=name, date=utils.timeString()))
@@ -402,8 +410,8 @@ class StoryTimeModel(QAbstractItemModel):
                 'name':recording.name,
                 'images':zip(frameImages, frameDurations),
                 'audioPath':recording.audio.filename,
-                'fps':recording.fps,
-                'ntsc':(recording.fps % 30 == 0),
+                'fps':self.recordingFps,
+                'ntsc':(self.recordingFps % 30 == 0),
                 'platform':platform,
             }
             return fcpxml.FcpXml(**fcpkw).toString()
@@ -440,6 +448,8 @@ class StoryTimeModel(QAbstractItemModel):
             index = self.recordingIndex
         # force extension
         filename = '{0}.xml'.format(os.path.splitext(filename)[0])
+        if sys.platform in ('win32', 'win64'):
+            filename = filename.replace("/","\\")
         # if filename is none should try to use lastSavedFilename for the current recording collection
         with open(filename, 'wb') as fp:
             pickle.dump(self.recordings[index].toString(), fp)
@@ -463,18 +473,19 @@ class StoryTimeModel(QAbstractItemModel):
             FFMPEG,
             '-y',
             '-f', 'image2',
+            '-r', self.recordingFps,
+            '-force_fps',
             '-i', img_fmt,
         ]
         if recording.audio.hasRecording:
             args += [
                 '-i', recording.audio.filename,
-                '-acodec', 'libvo_aacenc',
+                '-acodec', 'libfaac',
                 '-ab', '256k',
             ]
         args += [
             '-r', self.recordingFps,
             '-vcodec', 'libx264',
-            '-cqp', '31',
             '-g', '12',
             '-t', float(recording.duration) / self.recordingFps,
             filename,

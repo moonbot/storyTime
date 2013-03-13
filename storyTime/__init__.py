@@ -25,7 +25,9 @@ def setupLog():
     rotating = logging.handlers.RotatingFileHandler(logPath(), maxBytes=512*1024, backupCount=1)
     rotating.setFormatter(logging.Formatter(logFormat))
     root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
     root.addHandler(rotating)
+    root.info("INIT")
 
 def logPath():
     name = 'storyTime_{0}.log'.format(getpass.getuser())

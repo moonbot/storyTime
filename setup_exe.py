@@ -3,6 +3,7 @@ import py2exe
 import os
 import sys
 import shutil
+import fnmatch
 
 pyDir = os.path.dirname(sys.executable)
 pysideDir = os.path.join(pyDir, 'Lib/site-packages/PySide')
@@ -14,8 +15,6 @@ uiFiles = [os.path.join(uiDir, ui) for ui in os.listdir(uiDir)]
 imgDir = 'storyTime/images'
 imgFiles = [os.path.join(imgDir, i) for i in os.listdir(imgDir)]
 
-ffmpeg = 'M:/software/portable/ffmpeg/bin/ffmpeg.exe'
-
 setup(
     options = {'py2exe': {
         'compressed':1,
@@ -25,9 +24,10 @@ setup(
         },
     },
     data_files = [
-        ('', [ffmpeg]),
         ('views', uiFiles),
         ('images', imgFiles),
+        ('bin/windows', ["storyTime/bin/windows/ffmpeg.exe"]),
+        ('bin/mac', ["storyTime/bin/mac/ffmpeg"]),
     ],
     windows = [{
         'dest_base':'StoryTime',
