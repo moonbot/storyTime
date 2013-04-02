@@ -1,4 +1,4 @@
-![Image Alt](https://github.com/moonbot/storyTime/raw/master/storyTime/images/storyTime.png)
+![Image Alt](https://github.com/moonbot/storyTime/raw/master/storyTime/images/storyTime_small.png)
 
 ## Story Time
 
