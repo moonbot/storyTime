@@ -5,6 +5,16 @@ The tool also allows you to record audio and video, making it easy to move from 
 a presentable pitch quickly.
 
 
+## Download
+
+The latest compiled applications can be found here:
+
+Windows:
+http://sourceforge.net/projects/mb-storytime/files/StoryTime_Setup_v1.0.exe/download
+
+Mac:
+http://sourceforge.net/projects/mb-storytime/files/StoryTime_v1.0.zip/download
+
 
 ## Features
 
@@ -12,10 +22,17 @@ a presentable pitch quickly.
 - Record audio and video simultaneously with board timings
 - Record, manage, and export multiple sessions
 - Export XML files for using in Final Cut Pro and Premiere
+- Export Movies with audio and video. These are encoded with h264 and aac using ffmpeg.
 - Auto-Saves working recordings as they are made
 - Preview current and upcoming boards while timing
 
+## System Requirements
+- Must be a 64-bit
+- Mac/Windows
 
+## Known Limitations
+- Images must have even resolutions. Ex: 1920x1080. 1921x1081 will produce errors when exporting a movie.
+- Images work best if they are all the same size.
 
 ## Usage
 
