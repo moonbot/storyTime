@@ -46,9 +46,15 @@ To build Story Time simply use the setup_app or setup_exe scripts:
 : python setup_exe.py py2exe
 ```
 
-
 Story Time also provides commandline usage:
 
 ```
 : storyTime.exe /path/to/my/storyBoards
 ```
+
+## Installer
+Windows Installer is built using Inno Setup:
+
+http://www.jrsoftware.org/isinfo.php
+
+You can use the win_installer.iss script to build the installer.
