@@ -1,3 +1,5 @@
+![Image Alt](https://github.com/moonbot/storyTime/raw/master/storyTime/images/storyTime.png)
+
 ## Story Time
 
 Story Time is a tool that allows you to quickly time out story board animatics.
