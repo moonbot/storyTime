@@ -27,7 +27,7 @@ http://sourceforge.net/projects/mb-storytime/files/StoryTime_v1.0.zip/download
 - Preview current and upcoming boards while timing
 
 ## System Requirements
-- Must be a 64-bit
+- 64-bit Operating System
 - Mac/Windows
 
 ## Known Limitations
