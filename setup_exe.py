@@ -17,6 +17,7 @@ imgFiles = [os.path.join(imgDir, i) for i in os.listdir(imgDir)]
 
 setup(
     options = {'py2exe': {
+        'dist_dir':'dist_windows',
         'compressed':1,
         'optimize':2,
         'bundle_files': 3,

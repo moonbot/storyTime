@@ -87,10 +87,14 @@ class StoryTimeWindow(object):
         return StoryTimeWindow._instance
     
     def __init__(self, parent=None):
-        self.ui = utils.loadUi('views/main.ui', None)
+        viewPath = os.path.abspath('views/main.ui')
+        print "viewPath: {0}".format(viewPath) # TESTING
+        self.ui = utils.loadUi(viewPath, None)
         self.ui.setWindowTitle('Story Time')
         self.ui.setFocusPolicy(Qt.StrongFocus)
         self.ui.setAcceptDrops(True)
+        if utils.getOS() == 'windows':
+            self.ui.setWindowIcon(QIcon(os.path.abspath('StoryTime.ico')))
         self.ui.show()
         
         # setup model
@@ -338,7 +342,9 @@ class ImageView(QWidget):
     """
     def __init__(self, pixmapMapping, index, parent=None):
         super(ImageView, self).__init__(parent)
-        self.ui = utils.loadUi('views/imageView.ui', self)
+        viewPath = os.path.abspath('views/imageView.ui')
+        print "ImageView viewPath: {0}".format(viewPath) # TESTING
+        self.ui = utils.loadUi(viewPath, self)
         self._dataMapper = QDataWidgetMapper()
         self.pixmapMapping = pixmapMapping
         # for use when adjusting layout stretch
@@ -380,7 +386,9 @@ class ImageSlider(QWidget):
     def __init__(self, parent=None):
         super(ImageSlider, self).__init__(parent)
         #self.setupUi(self)
-        self.ui = utils.loadUi('views/imageSlider.ui', self)
+        viewPath = os.path.abspath('views/imageSlider.ui')
+        print "ImageSlider viewPath: {0}".format(viewPath) # TESTING
+        self.ui = utils.loadUi(viewPath, self)
         self._dataMapper = QDataWidgetMapper()
         
         self.ui.ImageSlider.valueChanged.connect(self._dataMapper.submit)
@@ -423,7 +431,9 @@ class TimeSlider(QWidget):
     def __init__(self, parent=None):
         super(TimeSlider, self).__init__(parent)
         #self.setupUi(self)
-        self.ui = utils.loadUi('views/timeSlider.ui', self)
+        viewPath = os.path.abspath('views/timeSlider.ui')
+        print "TimeSlider viewPath: {0}".format(viewPath) # TESTING
+        self.ui = utils.loadUi(viewPath, self)
         self._dataMapper = QDataWidgetMapper()
         
         # used to keep track of playback time

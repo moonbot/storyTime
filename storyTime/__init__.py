@@ -7,8 +7,8 @@ Copyright (c) 2012 Moonbot Studios. All rights reserved.
 
 __version__ = '0.2.4'
 
-from PySide.QtGui import QApplication
-from utils import isFrozen, modulePath
+from PySide.QtGui import QApplication, QIcon
+from utils import isFrozen, modulePath, getOS
 import controllers
 import getpass
 import logging

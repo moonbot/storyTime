@@ -6,18 +6,81 @@ Usage:
 """
 
 from setuptools import setup
+import inspect
 import os
+import stat
 
 uiDir = 'storyTime/views'
 uiFiles = [os.path.join(uiDir, ui) for ui in os.listdir(uiDir)]
+imgDir = 'storyTime/images'
+imgFiles = [os.path.join(imgDir, i) for i in os.listdir(imgDir)]
 
 setup(
     app = ['run.py'],
-    data_files = [ ('views', uiFiles) ],
+    name = 'StoryTime',
+    data_files = [
+    	('views', uiFiles),
+    	('images', imgFiles),
+    	('bin/windows', ["storyTime/bin/windows/ffmpeg.exe"]),
+    	('bin/mac', ["storyTime/bin/mac/ffmpeg"]),
+    	('bin/linux', ["storyTime/bin/linux/ffmpeg"]),
+    ],
     options = {'py2app': {
+        'dist_dir':"dist_mac",
         'argv_emulation': True,
         'includes':['PySide.QtXml'],
+        'iconfile':'storyTime/images/StoryTime.icns',
         }
     },
     setup_requires = ['py2app'],
 )
+
+def makeExecutable(path):
+    print "Making {0} executable".format(path)
+    st = os.stat(path)
+    os.chmod(path, st.st_mode | stat.S_IEXEC)
+
+scriptFolder = os.path.abspath(os.path.dirname(inspect.getfile(inspect.currentframe())))
+makeExecutable(os.path.join(scriptFolder, "dist_mac/StoryTime.app/Contents/Resources/bin/mac/ffmpeg"))
+makeExecutable(os.path.join(scriptFolder, "dist_mac/StoryTime.app/Contents/Resources/bin/linux/ffmpeg"))
+
+# from distutils.core import setup
+# import py2exe
+# import os
+# import sys
+# import shutil
+# import fnmatch
+
+# pyDir = os.path.dirname(sys.executable)
+# pysideDir = os.path.join(pyDir, 'Lib/site-packages/PySide')
+# qtconf = '[PATHS]\nBinaries=.\nPlugins=plugins'
+
+# setup(
+#     options = {'py2exe': {
+#         'compressed':1,
+#         'optimize':2,
+#         'bundle_files': 3,
+#         'includes':['PySide.QtXml'],
+#         },
+#     },
+#     data_files = [
+#         ('views', uiFiles),
+#         ('images', imgFiles),
+#         ('bin/windows', ["storyTime/bin/windows/ffmpeg.exe"]),
+#         ('bin/mac', ["storyTime/bin/mac/ffmpeg"]),
+#     ],
+#     windows = [{
+#         'dest_base':'StoryTime',
+#         'script':'run.py',
+#         'icon_resources':[(i, ico) for i in range(2)]
+#     }],
+#     zipfile = None,
+# )
+
+
+# # copy plugins and write qt.conf
+# if os.path.isdir('dist/plugins'):
+#     shutil.rmtree('dist/plugins')
+# shutil.copytree(os.path.join(pysideDir, 'plugins'), 'dist/plugins')
+# with open('dist/qt.conf', 'wb') as fp:
+#     fp.write(qtconf)

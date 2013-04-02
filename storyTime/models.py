@@ -31,8 +31,13 @@ Mappings = utils.enum(
 
 if sys.platform in ('win32', 'win64'):
     FFMPEG = "bin\\windows\\ffmpeg.exe".replace("/","\\")
+    print "Windows FFMPEG: {0}".format(FFMPEG) # TESTING
 elif sys.platform == 'darwin':
-    FFMPEG = "bin/mac/ffmpeg.exe"
+    FFMPEG = os.path.abspath("bin/mac/ffmpeg")
+    print "Mac FFMPEG: {0}".format(FFMPEG) # TESTING
+elif sys.platform == 'linux':
+    FFMPEG = os.path.abspath("bin/linux/ffmpeg")
+    print "Linux FFMPEG: {0}".format(FFMPEG) # TESTING
 
 class PixmapCache(object):
     def __init__(self):
@@ -465,34 +470,81 @@ class StoryTimeModel(QAbstractItemModel):
             LOG.debug('cannot export recording of duration 0')
             return
         
-        img_fmt = self.exportFrameRecordingSequence(recording.frames, progress)
-        if img_fmt is None:
+        imageSequence = self.exportFrameRecordingSequence(recording.frames, progress)
+        if imageSequence is None:
             return
-        
-        args = [
-            FFMPEG,
-            '-y',
-            '-f', 'image2',
-            '-r', self.recordingFps,
-            '-force_fps',
-            '-i', img_fmt,
-        ]
-        if recording.audio.hasRecording:
-            args += [
-                '-i', recording.audio.filename,
-                '-acodec', 'libfaac',
-                '-ab', '256k',
-            ]
-        args += [
-            '-r', self.recordingFps,
-            '-vcodec', 'libx264',
-            '-g', '12',
-            '-t', float(recording.duration) / self.recordingFps,
-            filename,
-        ]
-        args = [str(a) for a in args]
-        LOG.debug('ffmpeg command:\n {0}'.format(' '.join(args)))
-        subprocess.Popen(args)
+
+        # Build the command
+        platform = utils.getOS()
+        if platform == 'windows':
+            cmd = "{ffmpeg} -y -f image2 -r {recordingFps} -force_fps -i {inputSequence}"
+            if recording.audio.hasRecording:
+                cmd += " -i {audioFileName} -ab 256k -c:a libvo_aacenc"
+            cmd += " -r {recordingFps} -c:v h264 -crf 23 -preset medium -tune animation -pix_fmt yuv420p -g 12 -t {frameTime} {outputFilename}"
+
+            cmd = cmd.format(
+                ffmpeg = FFMPEG,
+                recordingFps = self.recordingFps,
+                inputSequence = imageSequence,
+                audioFileName = recording.audio.filename if recording.audio.hasRecording else None,
+                frameTime = float(recording.duration) / self.recordingFps,
+                outputFilename = filename,
+            )
+
+            LOG.debug("FFmpeg command: {0}".format(cmd))
+            utils.launchSubprocessInShell(cmd)
+
+        elif platform in ['mac', 'linux']:
+            cmd = "{ffmpeg} -y -f image2 -r {recordingFps} -force_fps -i {inputSequence}"
+            if recording.audio.hasRecording:
+                cmd += " -i {audioFileName} -ab 256k -c:a aac -strict experimental"
+            cmd += " -r {recordingFps} -c:v h264 -crf 23 -preset medium -tune animation -pix_fmt yuv420p -g 12 -t {frameTime} {outputFilename}"
+
+            cmd = cmd.format(
+                ffmpeg = FFMPEG,
+                recordingFps = self.recordingFps,
+                inputSequence = imageSequence,
+                audioFileName = recording.audio.filename if recording.audio.hasRecording else None,
+                frameTime = float(recording.duration) / self.recordingFps,
+                outputFilename = filename,
+            )
+
+            LOG.debug("FFmpeg command: {0}".format(cmd))
+            utils.launchSubprocessInShell(cmd)
+
+        # args = [
+        #     FFMPEG,
+        #     '-y',
+        #     '-f', 'image2',
+        #     '-r', self.recordingFps,
+        #     '-force_fps',
+        #     '-i', inputSequence,
+        # ]
+        # if recording.audio.hasRecording:
+        #     args += [
+        #         '-i', recording.audio.filename,
+        #         '-ab', '256k',
+        #     ]
+        #     if sys.platform in ('win32','win64'):
+        #         args += [
+        #             '-acodec', 'libvo_aacenc',
+        #         ]
+        #     else:
+        #         args += [
+        #             '-acodec', 'aac',
+        #             '-strict', 'experimental',
+        #         ]
+        # args += [
+        #     '-r', self.recordingFps,
+        #     '-vcodec', 'libx264',
+        #     '-g', '12',
+        #     '-t', float(recording.duration) / self.recordingFps,
+        #     filename,
+        # ]
+        # args = [str(a) for a in args]
+        # LOG.debug("FFmpeg command: {0}".format(cmd))
+        # utils.launchSubprocess(cmd)
+        # subprocess.Popen(args)
     
     def exportFrameRecordingSequence(self, recording, progress=None):
         """

@@ -11,6 +11,8 @@ import string
 import subprocess
 import sys
 import unicodedata
+import tempfile
+import stat
 
 LOG = logging.getLogger('storyTime.utils')
 
@@ -129,3 +131,78 @@ def getTimecode(frame, fps=FPS, percentage=False, timeCodeFmt=TIMECODE_FMT):
     return timeCodeFmt.format(hr=hours, min=minutes, sec=seconds, frame=decimal)
 
 
+def launchSubprocess(cmd, win_showWindow=False, **kwargs):
+    '''
+    Helper function for launching subprocesses between mac and windows
+    Returns the proc
+    '''
+
+    platform = getOS()
+    if platform == "windows":
+        LOG.debug("Subprocess Command: {0}".format(cmd))
+        if not win_showWindow:
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            kwargs['startupinfo'] = startupinfo
+        proc = subprocess.Popen(cmd, **kwargs)
+    elif platform in ['mac', 'linux']:
+        LOG.debug("Subprocess Command: {0}".format(cmd))
+        proc = subprocess.Popen(cmd, shell=True, **kwargs)
+    return proc
+
+def getTmpPath(suffix=""):
+    '''
+    Get a temp file name using tempfile.
+    We only want the filename, so we'll remove the file tempfile creates.
+    '''
+    tmpFile = tempfile.mkstemp(suffix=suffix, text=True)[1]
+    try:
+        os.remove(tmpFile)
+    except:
+        pass
+    return tmpFile
+
+
+def launchSubprocessInShell(cmd, keepOpen=False):
+    '''
+    Launch the supplied command in a shell window for any OS
+    '''
+    platform = getOS()
+    if platform == 'mac':
+        ext = ".command"
+        path = getTmpPath(ext)
+        content = "{0}".format(cmd, path)
+        if not keepOpen:
+            content += "\nexit"
+        f = open(path, 'w')
+        f.write(content)
+        f.close()
+        st = os.stat(path)
+        os.chmod(path, st.st_mode | stat.S_IEXEC)
+        cmd = "open \"{0}\"".format(path)
+        launchSubprocess(cmd)
+        LOG.debug("Subprocess Temp File: {0}".format(path))
+    if platform == 'windows':
+        ext = ".bat"
+        path = getTmpPath(ext)
+        path = os.path.normpath(path)
+        content = "{0}".format(cmd, path)
+        if not keepOpen:
+            content += "\nexit"
+        f = open(path, 'w')
+        f.write(content)
+        f.close()
+        cmd = "start {0}".format(path)
+        launchSubprocess(cmd, shell=True)
+        LOG.debug("Subprocess Temp File: {0}".format(path))
+
+def getOS():
+    '''
+    Get the os of the current system in a standard format
+    '''
+    if ((sys.platform.lower() == "win32") or (sys.platform.lower() == "win64")):
+        return "windows"
+    elif (sys.platform.lower() == "darwin"):
+        return "mac"
+    else:
+        return "linux"
