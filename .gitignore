@@ -1,6 +1,9 @@
 .DS_Store*
 Thumbs.db
 storyTime*.log*
+dist*
+*.egg
+Output/
 /.project
 /.settings
 /.pydevproject
