@@ -151,6 +151,10 @@ class StoryTimeWindow(object):
         self.ui.actionExportMovie.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_M))
         self.ui.actionExportForEditing.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_E))
         self.ui.actionImportImages.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_I))
+
+        # Active and reveal the window
+        self.ui.activateWindow()
+        self.ui.raise_()
     
     def setPrevImageViewVisible(self, visible):
         self.setImageViewVisible('prev', visible)
@@ -318,6 +322,7 @@ class StoryTimeWindow(object):
         if len(files) > 0 and len(files[0]) > 0:
             self.loadPaths(files[0])
             LOG.debug('Imported {0}'.format(files[0]))
+        self.ui.activateWindow()
     
     def getSaveDestination(self, caption, filter='XML files (*.xml)', **kwargs):
         files = QFileDialog.getSaveFileName(

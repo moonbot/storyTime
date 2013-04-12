@@ -40,8 +40,8 @@ setup(
 
 
 # copy plugins and write qt.conf
-if os.path.isdir('dist/plugins'):
-    shutil.rmtree('dist/plugins')
-shutil.copytree(os.path.join(pysideDir, 'plugins'), 'dist/plugins')
-with open('dist/qt.conf', 'wb') as fp:
+if os.path.isdir('dist_windows/plugins'):
+    shutil.rmtree('dist_windows/plugins')
+shutil.copytree(os.path.abspath('storyTime/bin/windows/plugins'), 'dist_windows/plugins')
+with open('dist_windows/qt.conf', 'wb') as fp:
     fp.write(qtconf)

@@ -33,8 +33,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "K:\files\bchapman\dist_windows\StoryTime.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "K:\files\bchapman\dist_windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "M:\tech\apps\storyTime\dist_windows\StoryTime.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "M:\tech\apps\storyTime\dist_windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
