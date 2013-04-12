@@ -12,11 +12,14 @@ a presentable pitch quickly.
 The latest compiled applications can be found here:
 
 Windows:
-http://sourceforge.net/projects/mb-storytime/files/StoryTime_Setup_v1.0.exe/download
+http://sourceforge.net/projects/mb-storytime/files/StoryTime_Setup_v1.1_win64.exe/download
 
 Mac:
-http://sourceforge.net/projects/mb-storytime/files/StoryTime_v1.0.zip/download
+http://sourceforge.net/projects/mb-storytime/files/StoryTime_v1.1_mac.zip/download
 
+## Updates
+v1.1
+- Fixed jpeg imports
 
 ## Features
 
