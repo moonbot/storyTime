@@ -17,10 +17,6 @@ http://sourceforge.net/projects/mb-storytime/files/StoryTime_Setup_v1.1_win64.ex
 Mac:
 http://sourceforge.net/projects/mb-storytime/files/StoryTime_v1.1_mac.zip/download
 
-## Updates
-v1.1
-- Fixed jpeg imports
-
 ## Features
 
 - PySide GUI for viewing and recording Story Board timing
@@ -57,9 +53,26 @@ Story Time also provides commandline usage:
 : storyTime.exe /path/to/my/storyBoards
 ```
 
+## Hotkeys
+
+- Space, period, right arrow, down arrow - Go to next image
+- Backspace, comma, left arrow, up arrow - Go to previous image
+- R - Start/Stop recording
+- P - Playback recording
+- B - Go to first frame of recording
+- E - Go to last frame of recording
+- N - Create new recording
+- [ - Show previous image preview
+- ] - Show next image preview
+
 ## Installer
 Windows Installer is built using Inno Setup:
 
 http://www.jrsoftware.org/isinfo.php
 
 You can use the win_installer.iss script to build the installer.
+
+
+## Changelog
+v1.1
+- Fixed jpeg imports
