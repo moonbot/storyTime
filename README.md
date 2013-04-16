@@ -78,7 +78,6 @@ the images can be accessed at the same path used to import them in Story Time.
 - N - Create new recording
 - [ - Show previous image preview
 - ] - Show next image preview
-- 
 
 ## Installer
 Windows Installer is built using Inno Setup:
