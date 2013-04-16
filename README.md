@@ -56,6 +56,40 @@ http://sourceforge.net/projects/mb-storytime/files/StoryTime_v1.1_mac.zip/downlo
 
 ## Usage
 
+- Create storyboards using your preferred drawing application
+- Export storyboards named alphabetically (i.e. mySceneA.001.jpg, mySceneA.002.jpg, mySceneB.001.jpg, etc.)
+- Open Story Time and drag the boards into the main window
+- When ready, press the record button (or hit R) and then tap through the boards
+
+## Exporting
+
+You can export videos or XML files from Story Time. Story Time stores its own files as xml and they can be reopened
+easily if you need to re-export a video or anything else.  When exporting for Premiere or Final Cut, be sure
+the images can be accessed at the same path used to import them in Story Time.
+
+## Hotkeys
+
+- Space, period, right arrow, down arrow - Go to next image
+- Backspace, comma, left arrow, up arrow - Go to previous image
+- R - Start/Stop recording
+- P - Playback recording
+- B - Go to first frame of recording
+- E - Go to last frame of recording
+- N - Create new recording
+- [ - Show previous image preview
+- ] - Show next image preview
+- 
+
+## Installer
+Windows Installer is built using Inno Setup:
+
+http://www.jrsoftware.org/isinfo.php
+
+You can use the win_installer.iss script to build the installer.
+
+
+## Building
+
 To build Story Time simply use the setup_app or setup_exe scripts:
 
 ```
@@ -71,25 +105,6 @@ Story Time also provides commandline usage:
 ```
 : storyTime.exe /path/to/my/storyBoards
 ```
-
-## Hotkeys
-
-- Space, period, right arrow, down arrow - Go to next image
-- Backspace, comma, left arrow, up arrow - Go to previous image
-- R - Start/Stop recording
-- P - Playback recording
-- B - Go to first frame of recording
-- E - Go to last frame of recording
-- N - Create new recording
-- [ - Show previous image preview
-- ] - Show next image preview
-
-## Installer
-Windows Installer is built using Inno Setup:
-
-http://www.jrsoftware.org/isinfo.php
-
-You can use the win_installer.iss script to build the installer.
 
 
 ## Changelog
