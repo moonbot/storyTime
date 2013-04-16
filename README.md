@@ -2,9 +2,14 @@
 
 ## Story Time
 
-Story Time is a tool that allows you to quickly time out story board animatics.
-The tool also allows you to record audio and video, making it easy to move from boards to
-a presentable pitch quickly.
+The goal of the Story Time project is to simplify all of the steps it takes for a story artist to turn their ideas into animatics.
+Story Time is in **very early development**, and much of the groundwork is subject to change drastically.
+
+Story Time works just like giving a verbal presentation: you step through story boards and deliver an audio pitch in real-time.
+The software records your delivery as timing data and audio recordings. You can then export the pitch as a video, or to an
+XML format for use with Premiere or Final Cut Pro, where you can refine timing or tweak the edit. Story Time is not designed to
+replace traditional editing software, but rather to bring together key elements that will help you get ideas out fast
+and allow you to iterate on them quickly.
 
 
 ## Download
@@ -19,13 +24,27 @@ http://sourceforge.net/projects/mb-storytime/files/StoryTime_v1.1_mac.zip/downlo
 
 ## Features
 
-- PySide GUI for viewing and recording Story Board timing
-- Record audio and video simultaneously with board timings
-- Record, manage, and export multiple sessions
-- Export XML files for using in Final Cut Pro and Premiere
-- Export Movies with audio and video. These are encoded with h264 and aac using ffmpeg.
-- Auto-Saves working recordings as they are made
+- PySide GUI for viewing and recording storyboard timing
 - Preview current and upcoming boards while timing
+- Auto-Saves working recordings as they are made
+- Record audio simultaneously with board timings
+- Record and export multiple sessions
+- Export XML files for using in Final Cut Pro and Premiere
+- Export Movies with audio and video. These are encoded with h264 and aac using ffmpeg
+
+## Wish List
+
+- Drawing tools - simplified suite of drawing tools for creating storyboards in-app
+- Basic movement tools - simplified suite of pan/zoom and other things that can be recorded live
+- Sound board - create sounds verbally or load from anywhere to be used on demand
+- Custom sorting/re-arranging of boards
+- Indicate shot grouping and automatic shot code assignment
+- Very basic editing tools to make quick fixes
+- Improved timeline UI
+- Improved exporting options
+- Re-record sections without losing an entire recording
+- Combine multiple recordings to export them as one video
+- Video recording (started)
 
 ## System Requirements
 - 64-bit Operating System
